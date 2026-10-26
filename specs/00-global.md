@@ -138,4 +138,5 @@ reu-brief/
 | 2026-10-26 | User-derived data → Workers AI only (H9) | Gemini free tier may train on content |
 | 2026-10-26 | No per-request KV writes | Free KV allows ~1,000 writes/day |
 | 2026-10-26 | M0 model check runs through a Worker `/api/diag/gemini` endpoint and a git-ignored `worker/.dev.vars`, not hand-typed curl in the owner's shell (spec 05) | Owner found the manual smoke test too hands-on; same pattern as the sister project (key in a git-ignored file the owner writes, code loads it) |
+| 2026-10-27 | Added `logistics.dates`; quotes for multi-place facts are joined with ` ‖ ` (R-EXT-16) | M1 test on CMU SUAMI: its 2026 page lists dates but no deadline; model joined quotes with "...", which cannot be verified |
 | 2026-10-26 | Added fields: other_funding, travel_support, housing, visa_support, optional prior_year_selectivity; full schema built in M1 (R-EXT-15) | Owner request; avoids reworking the schema in M2 |

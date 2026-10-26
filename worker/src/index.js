@@ -2,6 +2,9 @@
 // Later milestones add /api/resolve, /api/extract, /api/profile, /api/match (see specs/05).
 
 import { callGemini } from "./providers/gemini.js";
+import { sseResponse } from "./sse.js";
+import { extractProgram } from "./extract.js";
+import { resolveQuery } from "./resolve.js";
 
 const VERSION = "0.0.2-m0";
 
@@ -29,7 +32,7 @@ function json(data, status, cors) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const cors = corsHeaders(request, env);
 
     // Browsers send an OPTIONS "preflight" before cross-site requests with custom headers.
@@ -95,6 +98,35 @@ export default {
         if (last.ok) break;
       }
       return json({ model: last.model, http_status: last.status, ms: last.ms, json_valid: jsonValid, usage: last.usage, error: last.error, attempts }, 200, cors);
+    }
+
+    // POST /api/resolve  {query, hints?}  -> SSE (spec 05)
+    if (url.pathname === "/api/resolve" && request.method === "POST") {
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object") {
+        return json({ error: { code: "bad_input", message: "Send a JSON body.", retryable: false } }, 400, cors);
+      }
+      return sseResponse(cors, ctx, async (emit) => {
+        const out = await resolveQuery(env, { query: body.query, hints: body.hints }, emit);
+        await emit.result(out);
+      });
+    }
+
+    // POST /api/extract  {url} or {pasted_text, source_hint?}, refresh?  -> SSE (spec 05)
+    if (url.pathname === "/api/extract" && request.method === "POST") {
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object") {
+        return json({ error: { code: "bad_input", message: "Send a JSON body.", retryable: false } }, 400, cors);
+      }
+      return sseResponse(cors, ctx, async (emit) => {
+        const program = await extractProgram(env, {
+          url: typeof body.url === "string" ? body.url.trim() : undefined,
+          pasted_text: typeof body.pasted_text === "string" ? body.pasted_text : undefined,
+          source_hint: typeof body.source_hint === "string" ? body.source_hint.slice(0, 500) : undefined,
+          refresh: body.refresh === true,
+        }, emit);
+        await emit.result(program);
+      });
     }
 
     return json({ error: { code: "bad_input", message: "Unknown endpoint.", retryable: false } }, 404, cors);
