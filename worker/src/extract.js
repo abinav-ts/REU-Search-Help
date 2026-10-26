@@ -273,6 +273,14 @@ export async function extractProgram(env, { url, pasted_text, source_hint, refre
     }
   }
 
+  // A country rule left with no countries, but a quote that plainly says "open to all / worldwide":
+  // that is the "any" rule (an exception such as "except students of this university" stays in the quote).
+  if (cz.status !== "not_found" && cz.value && cz.value.rule !== "any" && !cz.value.countries?.length && cz.evidence_verified && anyRuleSupported(cz.evidence)) {
+    cz.value.rule = "any";
+    cz.status = "stated";
+    notes.push("eligibility.citizenship: read as open to all nationalities because the quote says so; any exception in the quote is not checked by code, so read it");
+  }
+
   // deadline must be an ISO date; cycle state is computed here, never by the model (R-EXT-10)
   const dl = rec.cycle.deadline;
   if (dl.status !== "not_found") {
