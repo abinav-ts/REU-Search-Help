@@ -4,47 +4,118 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>REU Brief</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
-    input, button, textarea { font: inherit; padding: .5rem .75rem; }
-    input[type=search] { width: 100%; box-sizing: border-box; }
-    pre { background: #f3f3f3; padding: 1rem; border-radius: 6px; white-space: pre-wrap; word-break: break-word; font-size: .85rem; }
-    .card { border: 1px solid #8884; border-radius: 8px; padding: .75rem 1rem; margin: .5rem 0; }
-    .muted { color: #777; }
-    .err { color: #b00020; }
-    #progress li:last-child { font-weight: 600; }
-    @media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } pre { background: #222; } .muted { color: #aaa; } .err { color: #ff8a80; } }
-  </style>
+  <meta name="description" content="Type a research programme's name. Get one page: who can apply, what it needs, and whether you are eligible, with the quote behind every fact.">
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <h1>REU Brief</h1>
-  <p class="muted">Type a programme name, a link, or what you remember about it.</p>
+<body data-state="idle">
+  <header class="top">
+    <h1>REU Brief</h1>
+    <div class="row" style="flex:0 0 auto">
+      <button type="button" class="secondary" id="profile-button" aria-haspopup="dialog">Add your profile</button>
+    </div>
+  </header>
 
-  <p><label>Demo key <input id="demo-key" type="password" autocomplete="off"></label></p>
-  <form id="search-form">
-    <p><input id="query" type="search" placeholder="e.g. Mitacs Globalink, CMU SUAMI, or a link" maxlength="300" required></p>
-    <p><button id="go" type="submit">Find programme</button> <button id="cancel" type="button" hidden>Cancel</button></p>
-  </form>
+  <main>
+    <p class="muted">Type a programme name, a link, or what you remember about it. You get one page: who can apply, what it needs, and whether <em>you</em> are eligible, with the quote behind every fact.</p>
 
-  <ul id="progress"></ul>
-  <p id="message" class="err" role="alert"></p>
-  <div id="candidates"></div>
+    <form id="search-form" class="search">
+      <label for="query" class="visually-hidden" style="position:absolute;left:-9999px">Programme name, link, or description</label>
+      <div class="row">
+        <input id="query" type="search" placeholder="e.g. Mitacs Globalink, or a link, or &quot;that quantum REU in Switzerland&quot;" maxlength="300" required autocomplete="off">
+        <button id="go" type="submit" class="primary">Find programme</button>
+        <button id="cancel" type="button" class="secondary" hidden>Cancel</button>
+      </div>
+      <p class="examples" id="examples"><span class="muted">Try:</span></p>
+    </form>
 
-  <div id="paste-box" hidden>
-    <p>You can paste the programme page's text instead:</p>
-    <p><textarea id="paste-text" rows="6" style="width:100%;box-sizing:border-box"></textarea></p>
-    <p><input id="paste-hint" placeholder="Link to the page (optional)" style="width:100%;box-sizing:border-box"></p>
-    <p><button id="paste-go" type="button">Read this text</button></p>
-  </div>
+    <div id="key-box" class="info-panel" hidden>
+      <label for="demo-key">Demo key</label>
+      <input id="demo-key" type="password" autocomplete="off" placeholder="Ask the presenter for the demo key">
+      <p class="hint">Needed once per browser tab. It keeps the free quotas from being used up by strangers.</p>
+    </div>
 
-  <h2 id="result-title" hidden>Raw result</h2>
-  <pre id="result" hidden></pre>
+    <div id="meant" class="meant" hidden></div>
+    <div aria-live="polite">
+      <ul id="progress" class="progress"></ul>
+      <p id="elapsed" class="elapsed" hidden></p>
+    </div>
+    <div id="error-panel" class="error-panel" role="alert" hidden></div>
+    <div id="info-panel" class="info-panel" hidden></div>
+    <div id="candidates"></div>
 
-  <details>
-    <summary>Developer checks</summary>
-    <p><button id="ping" type="button">Ping Worker</button> <button id="gemini" type="button">Check Gemini</button></p>
-    <pre id="out">Not called yet.</pre>
-  </details>
+    <div id="paste-box" class="paste-box info-panel" hidden>
+      <h3 style="margin-top:0">Paste the page's text instead</h3>
+      <p class="muted">Open the programme page, select all, copy, and paste it here. It is read the same way, and the quotes are checked against what you paste.</p>
+      <textarea id="paste-text" placeholder="Paste the programme page text here"></textarea>
+      <input id="paste-hint" type="text" placeholder="Link to the page (optional, shown as the source)" style="margin-top:6px">
+      <p><button id="paste-go" type="button" class="primary">Read this text</button></p>
+    </div>
+
+    <div id="result"></div>
+
+    <details style="margin-top:2rem">
+      <summary>Developer checks</summary>
+      <p><button id="ping" type="button" class="secondary">Ping Worker</button> <button id="gemini" type="button" class="secondary">Check Gemini</button></p>
+      <pre id="out" style="white-space:pre-wrap;word-break:break-word">Not called yet.</pre>
+    </details>
+  </main>
+
+  <footer>
+    REU Brief reads the official page and shows what it says, with quotes. It is not legal or visa advice, and programme terms change: always verify on the official site. Your profile stays in this browser.
+  </footer>
+
+  <dialog id="profile-dialog" aria-labelledby="profile-title">
+    <form id="profile-form" method="dialog">
+      <h2 id="profile-title">Your profile</h2>
+      <p class="hint">Used only in your browser to check eligibility. Nothing here is sent to our server. Saved on this device only.</p>
+
+      <label for="f-citizen">Citizenship(s) — type a country and press Enter</label>
+      <div id="f-citizen"></div>
+
+      <label for="f-pr">Permanent residency (optional)</label>
+      <div id="f-pr"></div>
+
+      <label for="f-inst">Country of the institution where you study</label>
+      <input id="f-inst" type="text" list="country-list" autocomplete="off" placeholder="e.g. India">
+
+      <div class="row">
+        <div>
+          <label for="f-level">Degree level</label>
+          <select id="f-level">
+            <option value="">Choose…</option>
+            <option value="bachelors">Bachelor's</option>
+            <option value="masters">Master's</option>
+            <option value="phd">PhD</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="f-year">Year of study</label>
+          <input id="f-year" type="number" min="1" max="10" inputmode="numeric" placeholder="e.g. 3">
+        </div>
+      </div>
+
+      <div class="row">
+        <div><label for="f-gpa">GPA (optional)</label><input id="f-gpa" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 8.4"></div>
+        <div><label for="f-scale">Out of</label><input id="f-scale" type="number" step="0.1" min="1" inputmode="decimal" placeholder="e.g. 10"></div>
+      </div>
+
+      <label for="f-fields">Fields of study (optional)</label>
+      <div id="f-fields"></div>
+      <label for="f-interests">Research interests (optional)</label>
+      <div id="f-interests"></div>
+      <label for="f-skills">Skills (optional)</label>
+      <div id="f-skills"></div>
+
+      <p id="profile-error" class="hint" style="color:var(--bad)" role="alert"></p>
+      <div class="row" style="margin-top:1rem">
+        <button type="submit" class="primary" id="profile-save" style="flex:0 0 auto">Save</button>
+        <button type="button" class="secondary" id="profile-cancel" style="flex:0 0 auto">Close</button>
+        <button type="button" class="link-button" id="profile-clear" style="flex:0 0 auto">Clear my data</button>
+      </div>
+    </form>
+  </dialog>
+
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
