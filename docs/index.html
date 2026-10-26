@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REU Brief</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
+    input, button { font: inherit; padding: .5rem .75rem; }
+    pre { background: #f3f3f3; padding: 1rem; border-radius: 6px; white-space: pre-wrap; }
+    @media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } pre { background: #222; } }
+  </style>
+</head>
+<body>
+  <h1>REU Brief</h1>
+  <p>M0 walking skeleton: checks that this page can talk to the Worker.</p>
+  <p><label>Demo key <input id="demo-key" type="password" autocomplete="off"></label>
+     <button id="ping">Ping Worker</button></p>
+  <pre id="out">Not called yet.</pre>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

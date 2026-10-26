@@ -1,0 +1,20 @@
+name = "reu-brief"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Your GitHub Pages origin, e.g. https://yourname.github.io  (no trailing slash, no path)
+ALLOWED_ORIGIN = "https://abinav-ts.github.io"
+# Filled in after the smoke test. MODEL_PUBLIC is a comma-separated fallback list.
+MODEL_PUBLIC = ""
+MODEL_PRIVATE = ""
+FIRECRAWL_MONTHLY_CAP = "900"
+
+# Cloudflare Workers AI (private lane for CV/match)
+[ai]
+binding = "AI"
+
+# Response cache (created with `npx wrangler kv namespace create CACHE`).
+[[kv_namespaces]]
+binding = "CACHE"
+id = "3bc55494d6814942bca87a7f4ebdad89"

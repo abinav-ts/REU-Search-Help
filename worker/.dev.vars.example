@@ -1,0 +1,4 @@
+# Copy to worker/.dev.vars for local testing with `npx wrangler dev`. Never commit .dev.vars.
+DEMO_KEY=choose-a-demo-passphrase
+FIRECRAWL_API_KEY=
+GEMINI_API_KEY=
