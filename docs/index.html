@@ -69,6 +69,14 @@
       <h2 id="profile-title">Your profile</h2>
       <p class="hint">Used only in your browser to check eligibility. Nothing here is sent to our server. Saved on this device only.</p>
 
+      <fieldset class="cv-box">
+        <legend>Pre-fill from your CV (optional)</legend>
+        <input id="cv-file" type="file" accept="application/pdf,.pdf">
+        <textarea id="cv-text" rows="3" placeholder="…or paste your CV text here"></textarea>
+        <p class="hint">Your CV is read in this browser. Only its text is sent for one-time analysis; it is not stored or logged. Citizenship is never read from a CV.</p>
+        <p><button type="button" class="secondary" id="cv-go">Read CV</button> <span id="cv-status" class="hint" role="status"></span></p>
+      </fieldset>
+
       <label for="f-citizen">Citizenship(s) — type a country and press Enter</label>
       <div id="f-citizen"></div>
 

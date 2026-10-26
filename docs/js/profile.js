@@ -7,7 +7,7 @@ const KEY = "reuBriefProfile";
 
 export const EMPTY = () => ({
   citizenships: [], permanent_residency: [], institution_country: "", degree_level: "",
-  year_of_study: null, gpa: null, fields_of_study: [], interests: [], skills: [],
+  year_of_study: null, gpa: null, fields_of_study: [], interests: [], skills: [], research_experience: [],
 });
 
 // localStorage can be blocked (private windows, strict settings): every use is wrapped.

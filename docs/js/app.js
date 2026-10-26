@@ -1,9 +1,11 @@
 // REU Brief page logic (spec 06). State machine:
 //   idle -> resolving -> (choosing)? -> extracting -> done      (error reachable from anywhere)
 import { WORKER_URL } from "./config.js";
-import { postStream } from "./api.js";
+import { postStream, postJSON } from "./api.js";
+import { pdfToText } from "./cv.js";
+import { keywordOverlap } from "./match.js";
 import { evaluate } from "./eligibility.js";
-import { h, renderResult } from "./render.js";
+import { h, renderResult, matchNode } from "./render.js";
 import { errorInfo } from "./errors.js";
 import { EMPTY, loadProfile, saveProfile, clearProfile, isComplete, summary, chipField, countryDatalist } from "./profile.js";
 import { normalizeCountry } from "./eligibility.js";
@@ -23,6 +25,7 @@ let timer = null;
 let lastProgram = null;
 let lastQuery = "";
 let profile = loadProfile();
+let pendingExperience = null; // research experience read from a CV, kept until the user saves
 
 function setState(s) {
   state = s;
@@ -170,6 +173,42 @@ function drawResult() {
   const hasProfile = isComplete(profile);
   const verdict = hasProfile ? evaluate(lastProgram, profile) : null;
   $("result").replaceChildren(renderResult(lastProgram, verdict, hasProfile));
+  fillMatch();
+}
+
+// ---- shared fields with the profile (spec 04). Runs on the private lane; falls back to keyword overlap. ----
+let matchSeq = 0;
+const matchCache = new Map();
+function programForMatch(p) {
+  const val = (f) => (f && f.status !== "not_found" && f.value ? f.value : null);
+  const out = {
+    research_areas: val(p.research.research_areas) || [],
+    fields_of_study: val(p.eligibility.fields_of_study) || [],
+    problem_statement: val(p.research.problem_statement) || "",
+    mentor_areas: (val(p.mentors) || []).map((m) => m.area).filter(Boolean),
+  };
+  return out.research_areas.length || out.fields_of_study.length || out.problem_statement || out.mentor_areas.length ? out : null;
+}
+async function fillMatch() {
+  const slot = $("result").querySelector('[data-slot="match"]');
+  if (!slot || !lastProgram) return;
+  const mine = { fields_of_study: profile.fields_of_study, interests: profile.interests, skills: profile.skills, research_experience: profile.research_experience || [] };
+  const hasData = mine.fields_of_study.length || mine.interests.length || mine.skills.length || mine.research_experience.length;
+  const theirs = programForMatch(lastProgram);
+  if (!hasData || !theirs) return; // nothing useful to compare
+  const key = JSON.stringify([lastProgram.official_url, mine]);
+  const my = ++matchSeq;
+  if (matchCache.has(key)) { slot.replaceChildren(matchNode(...matchCache.get(key))); return; }
+  slot.replaceChildren(h("p", { class: "muted" }, "Comparing with your profile…"));
+  let result, note;
+  try {
+    result = await postJSON("/api/match", { profile: mine, program: theirs }, keyInput.value);
+  } catch {
+    result = keywordOverlap(mine, theirs);
+    note = "(simple keyword match; the smarter match is unavailable right now)";
+  }
+  matchCache.set(key, [result, note]);
+  if (my === matchSeq) slot.replaceChildren(matchNode(result, note));
 }
 
 // ---- events ----
@@ -269,6 +308,7 @@ $("profile-form").addEventListener("submit", (e) => {
     fields_of_study: fields.fields.get(),
     interests: fields.interests.get(),
     skills: fields.skills.get(),
+    research_experience: pendingExperience ?? profile.research_experience ?? [],
   };
   if (gpaVal !== null && !scale) { $("profile-error").textContent = "Add what your GPA is out of (for example 10 or 4)."; return; }
   profile = next;
@@ -279,6 +319,32 @@ $("profile-form").addEventListener("submit", (e) => {
   if (!isComplete(profile)) $("profile-button").title = "Citizenship, degree level, year and institution country are needed for a verdict";
 });
 refreshProfileButton();
+
+// ---- CV: read in the browser, text analysed on the private lane, result PRE-FILLS the form (R-CV-4) ----
+$("cv-go").addEventListener("click", async () => {
+  const status = $("cv-status");
+  const set = (t) => { status.textContent = t; };
+  try {
+    let text = $("cv-text").value.trim();
+    const file = $("cv-file").files[0];
+    if (!text && file) { set("Reading the PDF in your browser…"); text = await pdfToText(file); }
+    if (!text) { set("Choose a PDF or paste your CV text first."); return; }
+    set("Analysing…");
+    const d = await postJSON("/api/profile", { text }, keyInput.value);
+    // Merge into the form; nothing is saved until the user presses Save. Citizenship is never touched (R-PRO-1).
+    const merge = (field, extra) => field.set([...new Set([...field.get(), ...(extra || [])])]);
+    merge(fields.fields, d.fields_of_study); merge(fields.interests, d.interests); merge(fields.skills, d.skills);
+    if (d.degree_level && !$("f-level").value) $("f-level").value = d.degree_level;
+    if (d.year_of_study && !$("f-year").value) $("f-year").value = d.year_of_study;
+    if (d.institution_country && !$("f-inst").value) $("f-inst").value = normalizeCountry(d.institution_country);
+    if (d.gpa && !$("f-gpa").value) { $("f-gpa").value = d.gpa.value; $("f-scale").value = d.gpa.scale; }
+    pendingExperience = d.research_experience || null;
+    $("cv-text").value = ""; $("cv-file").value = ""; // the CV text is not kept on the page
+    set("Done. Check the fields below, add your citizenship, then Save.");
+  } catch (e) {
+    set(errorInfo(e.code).text || e.message || "Could not read that CV.");
+  }
+});
 
 // ---- developer checks (from M0) ----
 async function callWorker(path) {
@@ -295,4 +361,4 @@ $("ping").addEventListener("click", () => callWorker("/api/ping"));
 $("gemini").addEventListener("click", () => callWorker("/api/diag/gemini"));
 
 // Test hook: lets a headless check draw a saved result without calling the Worker.
-window.__reuBrief = { showProgram(p) { lastProgram = p; setState("done"); drawResult(); }, setProfile(p) { profile = { ...EMPTY(), ...p }; refreshProfileButton(); drawResult(); } };
+window.__reuBrief = { flush: () => fillMatch(), showProgram(p) { lastProgram = p; setState("done"); drawResult(); }, setProfile(p) { profile = { ...EMPTY(), ...p }; refreshProfileButton(); drawResult(); } };

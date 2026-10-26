@@ -3,6 +3,7 @@
 //   privateJSON -> Workers AI. Anything derived from the user (CV, profile). Added in M5.
 // resolve.js and extract.js may call publicJSON only (test B8 checks this).
 import { callGemini } from "./providers/gemini.js";
+import { runJSON } from "./providers/workersai.js";
 import { ApiError } from "./errors.js";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -48,4 +49,9 @@ export async function publicJSON(env, { system, user, schema, timeoutMs = 60000,
   if (seen.timeout) throw new ApiError("timeout", "The model took too long. Please try again.", true, 504);
   if (seen.badJson) throw new ApiError("extraction_incomplete", "The model's answer could not be read. Please try again.", true, 502);
   throw new ApiError("upstream_error", "The language model is unavailable right now.", true, 502);
+}
+
+// The private lane: Workers AI. CV parsing and shared-fields matching only (profile.js, match.js).
+export function privateJSON(env, opts) {
+  return runJSON(env, opts);
 }

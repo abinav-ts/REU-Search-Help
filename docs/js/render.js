@@ -257,6 +257,7 @@ export function renderResult(program, verdict, hasProfile) {
     { class: "result" },
     titleBlock(program),
     verdictNode(verdict, hasProfile),
+    h("section", { "data-slot": "match" }),
     h("section", {}, h("h3", {}, "Eligibility, as the site states it"), h("div", { class: "grid" }, shown(eg).map((x) => factNode(x.label, x.f, x.fmt)))),
     h("section", {}, h("h3", {}, "At a glance"), h("div", { class: "grid" }, shown(gl).map((x) => factNode(x.label, x.f, x.fmt, { wide: x.wide })))),
     mentorsNode(program.mentors),
@@ -264,5 +265,21 @@ export function renderResult(program, verdict, hasProfile) {
       ? h("section", { class: "not-stated" }, h("h3", {}, "Not stated on the site"), h("p", { class: "muted" }, missing.join(" · ")))
       : null,
     sourcesNode(program)
+  );
+}
+
+// "Shared with your profile" (spec 04). `match` = {fit, shared[], gaps[], message?}; `note` explains a fallback.
+export function matchNode(match, note) {
+  const FIT = { strong: "Strong overlap", moderate: "Some overlap", weak: "Little overlap found", unknown: "Not enough information" };
+  return h(
+    "div",
+    { class: "match" },
+    h("h3", {}, "Shared with your profile"),
+    h("p", {}, h("span", { class: "chip" }, FIT[match.fit] || FIT.unknown), note ? h("span", { class: "muted" }, " " + note) : null),
+    match.message ? h("p", { class: "muted" }, match.message) : null,
+    match.shared?.length
+      ? h("ul", { class: "shared" }, match.shared.map((p) => h("li", {}, h("strong", {}, p.yours), " ↔ ", h("strong", {}, p.theirs), p.note ? h("span", { class: "muted" }, " — " + p.note) : null)))
+      : null,
+    match.gaps?.length ? h("p", { class: "muted" }, "The programme also mentions: " + match.gaps.join("; ")) : null
   );
 }

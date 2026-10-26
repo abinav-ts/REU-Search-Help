@@ -118,6 +118,34 @@ $("search-form").dispatchEvent(new window.Event("submit", { cancelable: true }))
 await tick(60);
 check("refusal shows the message and no result", $("error-panel").textContent.includes("Zorblax") && $("result").textContent === "");
 
+// 7b. CV prefill (P1, P2) and shared fields (P3), then the keyword fallback
+script["/api/extract"] = () => sse([["result", fixture("cmu-suami")]]);
+script["/api/resolve"] = () => sse([["result", { outcome: "single", candidates: [{ name: "SUAMI", organization: "CMU", official_url: "https://www.cmu.edu/math/undergrad/suami", source_kind: "official", confidence: 0.9, reason: "", cycle_hint: "" }] }]]);
+$("query").value = "suami";
+$("search-form").dispatchEvent(new window.Event("submit", { cancelable: true }));
+await tick(120);
+click($("profile-button")); click($("profile-clear")); await tick(); // start from an empty profile
+click($("profile-button")); await tick();
+$("cv-text").value = "Priya Sharma, B.Sc. Physics. ".repeat(20);
+script["/api/profile"] = () => Response.json({ interests: ["liquid crystals", "numerical PDEs"], skills: ["Python"], research_experience: [{ title: "Simulation", topics: ["finite elements"] }], fields_of_study: ["physics"], degree_level: "bachelors", year_of_study: 3, institution_country: "India", gpa: { value: 8.4, scale: 10 } });
+click($("cv-go")); await tick(80);
+check("P1 CV prefills interests and skills (editable chips)", $("f-interests").textContent.includes("liquid crystals") && $("f-skills").textContent.includes("Python"));
+check("P2 citizenship stays empty after a CV upload", $("f-citizen").querySelectorAll(".chip").length === 0);
+check("CV text is cleared from the page after reading", $("cv-text").value === "");
+check("CV request carried only the text", Object.keys(calls.filter((c) => c.p === "/api/profile").at(-1).body).join() === "text");
+chipInput("f-citizen", "India");
+script["/api/match"] = () => Response.json({ fit: "strong", shared: [{ yours: "liquid crystals", theirs: "Liquid crystals", note: "same topic" }], gaps: [] });
+$("profile-form").dispatchEvent(new window.Event("submit", { cancelable: true }));
+await tick(120);
+check("P3 shared fields show both sides", $("result").textContent.includes("Shared with your profile") && $("result").textContent.includes("liquid crystals") && $("result").textContent.includes("same topic"));
+check("match request contained no citizenship or name", !JSON.stringify(calls.filter((c) => c.p === "/api/match").at(-1).body).match(/India|citizen|Priya/i));
+script["/api/match"] = () => { throw new Error("down"); };
+$("profile-form").dispatchEvent(new window.Event("submit", { cancelable: true })); // same profile -> cached; change it to force a call
+chipInput("f-skills", "numerical PDEs");
+$("profile-form").dispatchEvent(new window.Event("submit", { cancelable: true }));
+await tick(120);
+check("R-MAT-4 falls back to keyword overlap when the match call fails", $("result").textContent.includes("simple keyword match"));
+
 // 8. clear my data
 click($("profile-button")); click($("profile-clear")); await tick();
 check("Clear my data empties the stored profile", !JSON.parse(window.localStorage.getItem("reuBriefProfile") || "{}").citizenships?.length);

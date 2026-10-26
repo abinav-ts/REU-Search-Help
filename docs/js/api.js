@@ -38,3 +38,16 @@ export async function postStream(path, body, demoKey, onEvent, signal) {
     }
   }
 }
+
+// Plain JSON POST for /api/profile and /api/match. Throws {code, message} on any problem.
+export async function postJSON(path, body, demoKey) {
+  let res;
+  try {
+    res = await fetch(WORKER_URL + path, { method: "POST", headers: { "Content-Type": "application/json", "X-Demo-Key": demoKey }, body: JSON.stringify(body) });
+  } catch {
+    throw { code: "network", message: "Could not reach the server." };
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw data.error || { code: "upstream_error", message: "Unexpected reply from the server." };
+  return data;
+}

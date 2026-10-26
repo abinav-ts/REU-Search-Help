@@ -1,12 +1,29 @@
-// REU Brief Worker — M0 skeleton: health check, CORS, demo-key check, ping.
-// Later milestones add /api/resolve, /api/extract, /api/profile, /api/match (see specs/05).
+// REU Brief Worker: routes, CORS, demo-key check, rate limit (spec 05).
+// The real work lives in resolve.js and extract.js; this file only decides who may call what.
 
 import { callGemini } from "./providers/gemini.js";
 import { sseResponse } from "./sse.js";
 import { extractProgram } from "./extract.js";
 import { resolveQuery } from "./resolve.js";
+import { parseCv } from "./profile.js";
+import { matchProfile } from "./match.js";
+import { toApiError } from "./errors.js";
+import { makeCache, creditsKey } from "./cache.js";
 
-const VERSION = "0.0.2-m0";
+const VERSION = "0.1.0";
+
+// R-BE-4: best-effort rate limit, kept in this isolate's memory (NOT in KV: free KV allows few writes).
+// It resets when the isolate restarts, which is fine for stopping casual abuse.
+const hits = new Map();
+export function rateLimited(ip, env, now = Date.now()) {
+  const limit = Number(env.RATE_LIMIT || 30);
+  const windowMs = 10 * 60 * 1000;
+  const recent = (hits.get(ip) || []).filter((t) => now - t < windowMs);
+  recent.push(now);
+  hits.set(ip, recent);
+  if (hits.size > 5000) for (const [k, v] of hits) if (!v.some((t) => now - t < windowMs)) hits.delete(k);
+  return recent.length > limit;
+}
 
 // Only the GitHub Pages site (and local testing) may call this Worker from a browser.
 function corsHeaders(request, env) {
@@ -42,13 +59,16 @@ export default {
 
     const url = new URL(request.url);
 
-    // Health check needs no key (spec 05 R-BE-3).
+    // Health check needs no key (spec 05 R-BE-3). It also shows this month's Firecrawl credit use.
     if (url.pathname === "/api/health") {
-      return json(
-        { ok: true, version: VERSION, credits_used: null, credits_cap: Number(env.FIRECRAWL_MONTHLY_CAP || 0) },
-        200,
-        cors
-      );
+      const used = Number((await makeCache(env).get(creditsKey()))?.used ?? 0);
+      return json({ ok: true, version: VERSION, credits_used: used, credits_cap: Number(env.FIRECRAWL_MONTHLY_CAP || 0) }, 200, cors);
+    }
+
+    // Rate limit every other request, before the key check, so guessing the key is slow too.
+    const ip = request.headers.get("CF-Connecting-IP") || "local";
+    if (rateLimited(ip, env)) {
+      return json({ error: { code: "rate_limited", message: "Too many requests. Wait a few minutes and try again.", retryable: true } }, 429, cors);
     }
 
     // Everything else needs the demo key.
@@ -98,6 +118,22 @@ export default {
         if (last.ok) break;
       }
       return json({ model: last.model, http_status: last.status, ms: last.ms, json_valid: jsonValid, usage: last.usage, error: last.error, attempts }, 200, cors);
+    }
+
+    // POST /api/profile {text}  and  POST /api/match {profile, program}: private lane, plain JSON.
+    // Neither stores anything (no KV) and neither logs the request body (H7).
+    if ((url.pathname === "/api/profile" || url.pathname === "/api/match") && request.method === "POST") {
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object") {
+        return json({ error: { code: "bad_input", message: "Send a JSON body.", retryable: false } }, 400, cors);
+      }
+      try {
+        const out = url.pathname === "/api/profile" ? await parseCv(env, { text: body.text }) : await matchProfile(env, body);
+        return json(out, 200, cors);
+      } catch (e) {
+        const err = toApiError(e);
+        return json({ error: err.toJSON() }, err.status || 500, cors);
+      }
     }
 
     // POST /api/resolve  {query, hints?}  -> SSE (spec 05)
