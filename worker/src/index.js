@@ -64,22 +64,37 @@ export default {
     // One tiny Gemini call so we can see which model is fast and available (spec 05).
     // Costs one Gemini request per call; it is behind the demo key like everything else.
     if (url.pathname === "/api/diag/gemini") {
-      // Default: the first model in the MODEL_PUBLIC fallback list.
-      const model = url.searchParams.get("model") || (env.MODEL_PUBLIC || "").split(",")[0].trim();
-      if (!/^gemini-[a-z0-9.-]+$/.test(model)) {
+      // With ?model=<id>: test just that model once.
+      // Without it: walk the MODEL_PUBLIC fallback list (R-BE-12): per model, retry once on
+      // 429/503 after 2 s, then move to the next model; stop at the first success.
+      const asked = url.searchParams.get("model");
+      const models = asked ? [asked] : (env.MODEL_PUBLIC || "").split(",").map((m) => m.trim()).filter(Boolean);
+      if (!models.length || !models.every((m) => /^gemini-[a-z0-9.-]+$/.test(m))) {
         return json({ error: { code: "bad_input", message: "Give ?model=<gemini model id>.", retryable: false } }, 400, cors);
       }
-      const r = await callGemini({
-        apiKey: env.GEMINI_API_KEY,
-        model,
-        user: 'Return JSON {"ok": true}',
-        schema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] },
-        thinking: url.searchParams.get("thinking") || undefined,
-        timeoutMs: 45000,
-      });
+      const attempts = [];
+      let last = null;
       let jsonValid = false;
-      try { jsonValid = JSON.parse(r.text).ok === true; } catch { /* not valid JSON */ }
-      return json({ model, http_status: r.status, ms: r.ms, json_valid: jsonValid, usage: r.usage, error: r.error }, 200, cors);
+      for (const model of models) {
+        for (let tryNo = 0; tryNo < (asked ? 1 : 2); tryNo++) {
+          if (tryNo > 0) await new Promise((r) => setTimeout(r, 2000));
+          last = await callGemini({
+            apiKey: env.GEMINI_API_KEY,
+            model,
+            user: 'Return JSON {"ok": true}',
+            schema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] },
+            thinking: url.searchParams.get("thinking") || undefined,
+            timeoutMs: 30000,
+          });
+          last.model = model;
+          attempts.push({ model, http_status: last.status, ms: last.ms });
+          jsonValid = false;
+          try { jsonValid = JSON.parse(last.text).ok === true; } catch { /* not valid JSON */ }
+          if (last.ok || (last.status !== 429 && last.status !== 503)) break; // only retry busy errors
+        }
+        if (last.ok) break;
+      }
+      return json({ model: last.model, http_status: last.status, ms: last.ms, json_valid: jsonValid, usage: last.usage, error: last.error, attempts }, 200, cors);
     }
 
     return json({ error: { code: "bad_input", message: "Unknown endpoint.", retryable: false } }, 404, cors);
