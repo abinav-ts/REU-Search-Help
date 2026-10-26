@@ -43,10 +43,16 @@ Program = {
   research: { problem_statement: Field<string /*≤ 3 sentences, faithful paraphrase*/>, research_areas: Field<string[]> },
   application: {
     sop_count: Field<number>, recommendation_letters: Field<number>,
-    other_documents: Field<string[]>, fee: Field<string>, how_to_apply_url: Field<string>
+    other_documents: Field<string[]>, fee: Field<string>, how_to_apply_url: Field<string>,
+    prior_year_selectivity: Field<string>          // OPTIONAL: e.g. "120 selected of 2,400 applicants (2025)"; usually not_found, and then not shown at all
   },
   mentors: Field<{ name: string, affiliation: string|null, area: string|null, url: string|null }[]>,
-  logistics: { duration: Field<string>, stipend: Field<string>, mode: Field<"in_person"|"remote"|"hybrid">, location: Field<string> },
+  logistics: { duration: Field<string>, mode: Field<"in_person"|"remote"|"hybrid">, location: Field<string>,
+               stipend: Field<string>,               // money paid to the student
+               other_funding: Field<string>,         // tuition waiver, grant, fees covered
+               travel_support: Field<string>,        // travel reimbursed or provided
+               housing: Field<string>,               // provided / allowance / not provided
+               visa_support: Field<string> },        // visa help or letter of support for international students
   meta: { fetched_at: string, pages_read: { url, kind: "main"|"faq"|"apply"|"people"|"pdf"|"other", ok: boolean }[],
           language: string, extraction_notes: string[], from_cache: boolean, input_kind: "url" | "pasted_text" }
 }
@@ -71,6 +77,7 @@ Program = {
 - **R-EXT-12** **Paste-text fallback:** with `pasted_text`, skip scraping and run the same extraction; `source_url` is the user-supplied hint or `null`; evidence verification runs against the pasted text.
 - **R-EXT-13** Non-English pages: extract in English, set `meta.language`, add a note, and keep the original-language quote as evidence.
 - **R-EXT-14** The Worker never returns model-written prose outside the schema fields (H4).
+- **R-EXT-15** The **full schema is built from M1** (`worker/src/schema.js`), so later milestones add checks, not fields. M1's exit test still checks only the core fields (name, citizenship, application counts, deadline). `prior_year_selectivity` is optional: the prompt says to fill it only when the page gives actual numbers, and the UI hides it when `not_found` (spec 06).
 
 ## Acceptance
 | ID | Check |

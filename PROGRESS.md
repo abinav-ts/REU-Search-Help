@@ -3,11 +3,11 @@
 Tick a box only when its exit test has passed on the **deployed** site (or Worker), not only locally.
 
 ## M0 Walking skeleton (Mon 10:00–11:00) — spec 05
-- [ ] GitHub repo exists; Pages serves `docs/index.html` at a public URL
-- [ ] Worker deployed; `GET /api/health` returns `{ok:true}`
-- [ ] Page button calls the Worker from the Pages origin (CORS works) and shows the reply
+- [x] GitHub repo exists; Pages serves `docs/index.html` at a public URL (https://abinav-ts.github.io/REU-Search-Help/)
+- [x] Worker deployed; `GET /api/health` returns `{ok:true}` (https://reu-brief.abinav-ts2006.workers.dev)
+- [x] Page button calls the Worker from the Pages origin (CORS works) and shows the reply (checked on phone, 26 Oct ~13:00 IST)
 - [ ] `scripts/smoke-test.sh` passes for Gemini and Firecrawl; Flash model id chosen and set as `MODEL_PUBLIC`; Workers AI model id set as `MODEL_PRIVATE`
-- [ ] `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`, `DEMO_KEY` set as Worker secrets
+- [ ] `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`, `DEMO_KEY` set as Worker secrets (`DEMO_KEY` and `FIRECRAWL_API_KEY` done; `GEMINI_API_KEY` waiting for the new AI Studio key)
 - Exit test: open the Pages URL on your phone, press the button, see the Worker reply.
 
 ## M1 Vertical slice (11:00–13:00) — specs 01, 02

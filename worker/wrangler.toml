@@ -6,8 +6,8 @@ compatibility_date = "2025-09-01"
 # Your GitHub Pages origin, e.g. https://yourname.github.io  (no trailing slash, no path)
 ALLOWED_ORIGIN = "https://abinav-ts.github.io"
 # Filled in after the smoke test. MODEL_PUBLIC is a comma-separated fallback list.
-MODEL_PUBLIC = ""
-MODEL_PRIVATE = ""
+MODEL_PUBLIC = "gemini-3.1-flash-lite,gemini-3.5-flash-lite"
+MODEL_PRIVATE = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 FIRECRAWL_MONTHLY_CAP = "900"
 
 # Cloudflare Workers AI (private lane for CV/match)

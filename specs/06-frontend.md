@@ -13,7 +13,7 @@ Depends on: 00, 03, 04, 05. Code: `docs/`. No framework, no build step.
 5. **Result page** (order matters):
    1. Title block: programme, organisation, tier + country labels, cycle year, deadline with `open/closed/upcoming` chip, stale-cycle warning.
    2. **Verdict banner** (Eligible / Unclear / Not eligible), the one-line summary, and the deciding quote with its source link. Expandable "How this was decided" listing every check.
-   3. **At-a-glance grid:** problem statement; shared fields with you; SOPs; recommendation letters; other documents; duration; stipend; mode/location; fee.
+   3. **At-a-glance grid:** problem statement; shared fields with you; SOPs; recommendation letters; other documents; duration; stipend and other funding; travel support; housing; visa support; mode/location; fee; prior-year selectivity (only shown when stated; never listed under "Not stated on the site").
    4. **Mentors** list (name, affiliation, area, link).
    5. **Not stated on the site** — collapsed list of `not_found` fields, grey.
    6. **Sources:** pages read (ok/failed), fetch time, "from cache" note, "Verify on the official site" button (H6).

@@ -1,7 +1,9 @@
 // REU Brief Worker — M0 skeleton: health check, CORS, demo-key check, ping.
 // Later milestones add /api/resolve, /api/extract, /api/profile, /api/match (see specs/05).
 
-const VERSION = "0.0.1-m0";
+import { callGemini } from "./providers/gemini.js";
+
+const VERSION = "0.0.2-m0";
 
 // Only the GitHub Pages site (and local testing) may call this Worker from a browser.
 function corsHeaders(request, env) {
@@ -57,6 +59,27 @@ export default {
 
     if (url.pathname === "/api/ping") {
       return json({ ok: true, message: "Worker says hi", time: new Date().toISOString() }, 200, cors);
+    }
+
+    // One tiny Gemini call so we can see which model is fast and available (spec 05).
+    // Costs one Gemini request per call; it is behind the demo key like everything else.
+    if (url.pathname === "/api/diag/gemini") {
+      // Default: the first model in the MODEL_PUBLIC fallback list.
+      const model = url.searchParams.get("model") || (env.MODEL_PUBLIC || "").split(",")[0].trim();
+      if (!/^gemini-[a-z0-9.-]+$/.test(model)) {
+        return json({ error: { code: "bad_input", message: "Give ?model=<gemini model id>.", retryable: false } }, 400, cors);
+      }
+      const r = await callGemini({
+        apiKey: env.GEMINI_API_KEY,
+        model,
+        user: 'Return JSON {"ok": true}',
+        schema: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] },
+        thinking: url.searchParams.get("thinking") || undefined,
+        timeoutMs: 45000,
+      });
+      let jsonValid = false;
+      try { jsonValid = JSON.parse(r.text).ok === true; } catch { /* not valid JSON */ }
+      return json({ model, http_status: r.status, ms: r.ms, json_valid: jsonValid, usage: r.usage, error: r.error }, 200, cors);
     }
 
     return json({ error: { code: "bad_input", message: "Unknown endpoint.", retryable: false } }, 404, cors);

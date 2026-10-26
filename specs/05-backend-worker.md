@@ -12,6 +12,7 @@ All under `https://<worker-subdomain>.workers.dev/api`. JSON in. Responses for `
 | `POST /extract` | `{url}` or `{pasted_text, source_hint?}`, `refresh?` | SSE, final event `result` = `Program` |
 | `POST /profile` | `{text}` (CV text read in the browser) | JSON profile draft (spec 04) |
 | `POST /match` | `{profile, program}` | JSON (spec 04) |
+| `GET /diag/gemini?model=<id>&thinking=<level?>` | — | JSON `{model, http_status, ms, json_valid, usage, error?}` from ONE tiny Gemini call using the Worker's own key. Needs `X-Demo-Key`. Lets the model choice (M0) and later quota checks run without anyone handling the key. Never echoes the key or page text. |
 
 ## SSE protocol
 Events (each `event:` name + one-line JSON `data:`):
