@@ -124,11 +124,45 @@ export function pruneUnsupportedCountries(countries, evidence, variants) {
 
 // ---- Conflicting country lists across pages (code-side check; the model often misses these) ----
 
+// ---- CPU note: the free Workers plan allows ~10 ms of CPU per request, so the scan below builds
+// ONE lookup table (spelling -> country) and then checks each sentence word-by-word (a few Map
+// lookups per word) instead of testing every spelling of every country against every sentence.
+const scanners = new Map();
+function scannerFor(allCountries, variants) {
+  const key = allCountries;
+  if (scanners.has(key)) return scanners.get(key);
+  const table = new Map(); // normalised spelling -> canonical country
+  let maxWords = 1;
+  for (const c of allCountries) {
+    for (const v of variants(c)) {
+      const n = normaliseForMatch(v);
+      if (!n) continue;
+      const w = n.split(" ").length;
+      if (w > 4) continue; // the very long official names are never written out in lists
+      maxWords = Math.max(maxWords, w);
+      if (!table.has(n)) table.set(n, c);
+    }
+  }
+  const scan = (sentence) => {
+    const words = normaliseForMatch(sentence).split(" ");
+    const found = new Set();
+    for (let i = 0; i < words.length; i++) {
+      for (let n = 1; n <= maxWords && i + n <= words.length; n++) {
+        const c = table.get(words.slice(i, i + n).join(" "));
+        if (c) found.add(c);
+      }
+    }
+    return [...found];
+  };
+  scanners.set(key, scan);
+  return scan;
+}
+
 // Which known countries does this sentence name? `allCountries` = canonical names,
-// `variants(name)` = normalised spellings.
+// `variants(name)` = spellings of one country. Result is in the order of `allCountries`.
 export function countriesInSentence(sentence, allCountries, variants) {
-  const text = " " + normaliseForMatch(sentence) + " ";
-  return allCountries.filter((c) => variants(c).some((v) => v && text.includes(" " + normaliseForMatch(v) + " ")));
+  const found = new Set(scannerFor(allCountries, variants)(sentence));
+  return allCountries.filter((c) => found.has(c));
 }
 
 // pages: [{url, text}]. Per page take the sentence that names the most countries (>= minCountries);
@@ -139,6 +173,7 @@ export function countryListConflict(pages, allCountries, variants, minCountries 
     let top = null;
     for (const raw of String(p.text || "").split(/(?<=[.!?])\s+|\n+/)) {
       if (raw.length < 20 || raw.length > 1500) continue;
+      if ((raw.match(/,| and /g) || []).length < minCountries - 2) continue; // a list of countries has separators
       const countries = countriesInSentence(raw, allCountries, variants);
       if (countries.length >= minCountries && (!top || countries.length > top.countries.length)) top = { url: p.url, sentence: raw.trim(), countries };
     }

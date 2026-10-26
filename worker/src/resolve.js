@@ -118,7 +118,7 @@ function noneMessage(query) {
 
 // ---- main entry ----
 
-export async function resolveQuery(env, { query, hints }, emit, deps = { search, scrape }) {
+export async function resolveQuery(env, { query, hints, ttlHours }, emit, deps = { search, scrape }) {
   if (typeof query !== "string" || !query.trim()) throw new ApiError("bad_input", "Type a programme name, a link, or what you remember about it.", false, 400);
   query = query.trim().slice(0, 300);
   const cache = makeCache(env);
@@ -132,7 +132,7 @@ export async function resolveQuery(env, { query, hints }, emit, deps = { search,
   };
   const finish = async (out, cacheable = true) => {
     if (budget.used > 0) await cache.put(monthKey, { used: monthUsed + budget.used }, 40 * 24 * 3600);
-    if (cacheable) await cache.put(cacheKey, out, TTL.resolve);
+    if (cacheable) await cache.put(cacheKey, out, ttlHours ? ttlHours * 3600 : TTL.resolve);
     return out;
   };
 

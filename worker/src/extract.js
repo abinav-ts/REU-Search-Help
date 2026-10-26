@@ -104,7 +104,7 @@ function mainPageProblem(page) {
 // ---- main entry ----
 
 // input: {url} or {pasted_text, source_hint?}.  emit: {stage(id, message)}.
-export async function extractProgram(env, { url, pasted_text, source_hint, refresh = false }, emit) {
+export async function extractProgram(env, { url, pasted_text, source_hint, refresh = false, ttlHours }, emit) {
   const started = Date.now();
   const deadline = started + WALL_CLOCK_MS;
   const cache = makeCache(env);
@@ -308,7 +308,7 @@ export async function extractProgram(env, { url, pasted_text, source_hint, refre
     },
   };
 
-  if (url) await cache.put(await programKey(url), program, TTL.program);
+  if (url) await cache.put(await programKey(url), program, ttlHours ? ttlHours * 3600 : TTL.program); // pre-warmed records live longer (R-BE-9)
   console.log(`extract done host=${hostOf(url || source_hint || "") || "paste"} scrapes=${budget.scrapes} credits=${budget.used} ms=${program.meta.elapsed_ms}`);
   return program;
 }

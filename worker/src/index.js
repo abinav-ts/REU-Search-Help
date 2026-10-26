@@ -41,6 +41,9 @@ function corsHeaders(request, env) {
   };
 }
 
+// Optional cache lifetime for pre-warming (R-BE-9): 1 to 168 hours, else the default.
+const ttl = (body) => (Number.isFinite(body.ttl_hours) && body.ttl_hours >= 1 && body.ttl_hours <= 168 ? Math.floor(body.ttl_hours) : undefined);
+
 function json(data, status, cors) {
   return new Response(JSON.stringify(data), {
     status,
@@ -143,7 +146,7 @@ export default {
         return json({ error: { code: "bad_input", message: "Send a JSON body.", retryable: false } }, 400, cors);
       }
       return sseResponse(cors, ctx, async (emit) => {
-        const out = await resolveQuery(env, { query: body.query, hints: body.hints }, emit);
+        const out = await resolveQuery(env, { query: body.query, hints: body.hints, ttlHours: ttl(body) }, emit);
         await emit.result(out);
       });
     }
@@ -160,6 +163,7 @@ export default {
           pasted_text: typeof body.pasted_text === "string" ? body.pasted_text : undefined,
           source_hint: typeof body.source_hint === "string" ? body.source_hint.slice(0, 500) : undefined,
           refresh: body.refresh === true,
+          ttlHours: ttl(body),
         }, emit);
         await emit.result(program);
       });
