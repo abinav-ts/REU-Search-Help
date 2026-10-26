@@ -1,5 +1,8 @@
 # Schedule — REU Brief
 
+> **Re-cut, Tue 27 Oct ~05:00 IST.** The window ends **Tue 11:59 IST**. M0–M5 were built (locally) overnight; what remains is deploy, live checks and the demo. Plan from here: 07:00–08:00 owner wakes, deploys and pushes (`PROGRESS.md` "To do next"); 08:00–10:15 M6 hardening on the live site (demo set, failure list, fixes); 10:15–10:30 break; 10:30–11:30 M7 rehearse, pre-warm the cache, record the backup video; 11:30–11:59 freeze. Cut-ladder steps 1–2 (mentor depth, tier filters) were applied up front: mentors are names with affiliation/area, and tier/country are labels only. Gate G1 is the first thing to check after the deploy.
+
+
 Window: **Mon 26 Oct 2026, 10:00 IST → Tue 27 Oct 2026, 11:59 IST** (25 h 59 m wall-clock).
 
 ## Assumptions (change these and the plan must be re-cut)

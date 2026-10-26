@@ -8,8 +8,8 @@ All under `https://<worker-subdomain>.workers.dev/api`. JSON in. Responses for `
 | Method + path | Body | Response |
 |---|---|---|
 | `GET /health` | — | `{ok:true, version, credits_used, credits_cap}` |
-| `POST /resolve` | `{query, hints?}` | SSE, final event `result` = spec 01 output |
-| `POST /extract` | `{url}` or `{pasted_text, source_hint?}`, `refresh?` | SSE, final event `result` = `Program` |
+| `POST /resolve` | `{query, hints?, ttl_hours?}` | SSE, final event `result` = spec 01 output |
+| `POST /extract` | `{url}` or `{pasted_text, source_hint?}`, `refresh?`, `ttl_hours?` | SSE, final event `result` = `Program` |
 | `POST /profile` | `{text}` (CV text read in the browser) | JSON profile draft (spec 04) |
 | `POST /match` | `{profile, program}` | JSON (spec 04) |
 | `GET /diag/gemini?model=<id>&thinking=<level?>` | — | JSON `{model, http_status, ms, json_valid, usage, error?}` from ONE tiny Gemini call using the Worker's own key. Needs `X-Demo-Key`. Lets the model choice (M0) and later quota checks run without anyone handling the key. Never echoes the key or page text. |
@@ -42,7 +42,7 @@ Send a comment line (`: keepalive`) every 10 s so proxies don't close the stream
 - **R-BE-1** Secrets: `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`, `DEMO_KEY`. Never in the page, repo, or logs. `wrangler.toml` holds only non-secret config and the `AI` and `CACHE` bindings.
 - **R-BE-2** CORS: allow origins `https://<github-user>.github.io` and `http://localhost:*` only; reply to `OPTIONS` preflight.
 - **R-BE-3** Header `X-Demo-Key` must equal secret `DEMO_KEY`. The page asks for it once (entered by the presenter, kept in `sessionStorage`). Missing/wrong → `401 unauthorized`. (A public page can't hide a key; this stops casual abuse. The real protection is the credit cap, R-BE-11.)
-- **R-BE-4** Rate limit: best-effort **in-memory** counter per isolate (e.g. 20 requests / 10 min per IP) → `429 rate_limited`. Do **not** use KV for counters (R-BE-8).
+- **R-BE-4** Rate limit: best-effort **in-memory** counter per isolate (default 30 requests / 10 min per IP, env `RATE_LIMIT`) → `429 rate_limited`. Do **not** use KV for counters (R-BE-8).
 - **R-BE-5** Env vars: `MODEL_PUBLIC`, `MODEL_PRIVATE`, `FIRECRAWL_MONTHLY_CAP` (default 900), `ALLOWED_ORIGIN`.
 - **R-BE-6** Per-request caps: 1 search; ≤ 6 scrapes (spec 02); page text truncated to 40 000 chars per page and 120 000 chars total sent to the LLM; total wall-clock ≤ 120 s → `timeout`.
 - **R-BE-7** Logging: log request id, endpoint, stage names, duration, error code. **Never** log query contents beyond 60 chars, CV text, profile, or page text.
