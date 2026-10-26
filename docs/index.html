@@ -5,19 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>REU Brief</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
-    input, button { font: inherit; padding: .5rem .75rem; }
-    pre { background: #f3f3f3; padding: 1rem; border-radius: 6px; white-space: pre-wrap; }
-    @media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } pre { background: #222; } }
+    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
+    input, button, textarea { font: inherit; padding: .5rem .75rem; }
+    input[type=search] { width: 100%; box-sizing: border-box; }
+    pre { background: #f3f3f3; padding: 1rem; border-radius: 6px; white-space: pre-wrap; word-break: break-word; font-size: .85rem; }
+    .card { border: 1px solid #8884; border-radius: 8px; padding: .75rem 1rem; margin: .5rem 0; }
+    .muted { color: #777; }
+    .err { color: #b00020; }
+    #progress li:last-child { font-weight: 600; }
+    @media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } pre { background: #222; } .muted { color: #aaa; } .err { color: #ff8a80; } }
   </style>
 </head>
 <body>
   <h1>REU Brief</h1>
-  <p>M0 walking skeleton: checks that this page can talk to the Worker.</p>
-  <p><label>Demo key <input id="demo-key" type="password" autocomplete="off"></label>
-     <button id="ping">Ping Worker</button>
-     <button id="gemini">Check Gemini</button></p>
-  <pre id="out">Not called yet.</pre>
+  <p class="muted">Type a programme name, a link, or what you remember about it.</p>
+
+  <p><label>Demo key <input id="demo-key" type="password" autocomplete="off"></label></p>
+  <form id="search-form">
+    <p><input id="query" type="search" placeholder="e.g. Mitacs Globalink, CMU SUAMI, or a link" maxlength="300" required></p>
+    <p><button id="go" type="submit">Find programme</button> <button id="cancel" type="button" hidden>Cancel</button></p>
+  </form>
+
+  <ul id="progress"></ul>
+  <p id="message" class="err" role="alert"></p>
+  <div id="candidates"></div>
+
+  <div id="paste-box" hidden>
+    <p>You can paste the programme page's text instead:</p>
+    <p><textarea id="paste-text" rows="6" style="width:100%;box-sizing:border-box"></textarea></p>
+    <p><input id="paste-hint" placeholder="Link to the page (optional)" style="width:100%;box-sizing:border-box"></p>
+    <p><button id="paste-go" type="button">Read this text</button></p>
+  </div>
+
+  <h2 id="result-title" hidden>Raw result</h2>
+  <pre id="result" hidden></pre>
+
+  <details>
+    <summary>Developer checks</summary>
+    <p><button id="ping" type="button">Ping Worker</button> <button id="gemini" type="button">Check Gemini</button></p>
+    <pre id="out">Not called yet.</pre>
+  </details>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
