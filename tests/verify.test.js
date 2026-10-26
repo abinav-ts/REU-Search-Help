@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { countryListConflict, pruneUnsupportedCountries,normaliseForMatch, makeEvidenceChecker, cleanField, verifyField, computeCycleState } from "../worker/src/verify.js";
+import { anyRuleSupported, countryListConflict, pruneUnsupportedCountries,normaliseForMatch, makeEvidenceChecker, cleanField, verifyField, computeCycleState } from "../worker/src/verify.js";
 
 const PAGE = `Eligibility: Applicants must be citizens or permanent
 residents of the United States. Students in their
@@ -81,4 +81,12 @@ test("H2/F7 two pages naming different country lists are reported as a conflict"
   const same = countryListConflict([old, { url: "x", text: old.text }], COUNTRY_NAMES, countryVariants);
   assert.equal(same, null);
   assert.equal(countryListConflict([old], COUNTRY_NAMES, countryVariants), null);
+});
+
+test("H2 rule 'any' needs explicit wording", () => {
+  assert.ok(anyRuleSupported("Applicants of all nationalities are welcome"));
+  assert.ok(anyRuleSupported("open to international students"));
+  assert.ok(anyRuleSupported("regardless of citizenship"));
+  assert.ok(!anyRuleSupported("I am a native of India, presently studying abroad. Can I apply? You are welcome to apply."));
+  assert.ok(!anyRuleSupported(null));
 });

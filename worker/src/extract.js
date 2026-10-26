@@ -5,7 +5,7 @@
 import { ApiError } from "./errors.js";
 import { publicJSON } from "./llm.js";
 import { modelSchema, cleanModelOutput, eachField } from "./schema.js";
-import { makeLocator, computeCycleState, pruneUnsupportedCountries, countryListConflict } from "./verify.js";
+import { makeLocator, computeCycleState, pruneUnsupportedCountries, countryListConflict, anyRuleSupported, countriesInSentence } from "./verify.js";
 // The country-name table lives with the eligibility engine; reuse it so both sides agree on spellings.
 import { countryVariants, COUNTRY_NAMES } from "../../docs/js/eligibility.js";
 import { rankLinks, markdownLinks, hostOf } from "./links.js";
@@ -27,7 +27,7 @@ RULES
 3. status "stated" = the pages clearly say it. status "ambiguous" = pages conflict, or the wording is vague ("preference given to ..."). For a conflict put both quotes in "evidence" joined with " ‖ ". The same separator is used when one fact is spread over several places (for example a list of mentors): give several SHORT verbatim quotes joined with " ‖ ", and never use "..." or "…" inside a quote.
 4. Counts: "sop_count" is the number of statements of purpose / personal statements / essays the application asks for; "recommendation_letters" the number of reference letters. Fill a count ONLY when the pages give the number or clearly list that many separate documents (for example "two letters of recommendation", "a letter from a professor" = 1). If the pages merely mention that the application asks about your motivation or interests, that is NOT a count: use not_found. Never use 0 or 1 as a guess, and never write a count in extraction_notes that you could not support with a quote.
 5. "cycle.year" is the year of the programme cycle the PAGE describes (for example 2026), taken from the page, not from today's date. "cycle.deadline" is the main application deadline as an ISO date YYYY-MM-DD. If the page gives a deadline without a year (for example "February 15") and the cycle year is stated elsewhere on the pages, use that year but set the status to "ambiguous" and say so in extraction_notes. If there are several deadlines (for example different ones for international applicants), choose the one that applies to the most applicants and mention the others in extraction_notes. If the page looks like it describes a previous year, say so in extraction_notes.
-6. Citizenship: rule "any" ONLY if the page explicitly welcomes all nationalities. "citizens_only" = citizens of the host country only. "citizens_or_pr" = citizens or permanent residents. "listed_countries" = only the listed countries (put them in "countries"). "excludes_countries" = open except the listed countries. Otherwise "other". Never infer from where the host university is.
+6. Citizenship: rule "any" ONLY if the page explicitly welcomes all nationalities. "citizens_only" = citizens of the host country only. "citizens_or_pr" = citizens or permanent residents. "listed_countries" = only the listed countries (put them in "countries"). "excludes_countries" = open except the listed countries. Otherwise "other". Always put the countries the page names into "countries" as full English names (for example "United States"), also for the citizens_only and citizens_or_pr rules. Never infer from where the host university is.
 7. "career_stage.levels": which degree levels may apply. "other_requirements" lists extra requirements verbatim-ish (language tests, prior courses, nominations); do not evaluate them.
 8. "dates" = when the programme runs (for example "May 27 – July 17, 2026"). Funding fields are separate and each "value" is a SHORT FACTUAL DESCRIPTION in plain words, never just "Yes": "stipend" = money paid to the student (amount and period if given, for example "Rs 2000 per week for up to 8 weeks"); "other_funding" = tuition waiver, grant, awards or fees covered; "travel_support" = what travel is paid or reimbursed; "housing" = provided, allowance, or not provided (say which); "visa_support" = visa help or an invitation letter for international students. Use each quote for the field it belongs to; do not repeat one quote across several funding fields. State only what is written.
 9. "prior_year_selectivity": fill ONLY if the pages give real numbers (for example applicants vs places). Usually not_found.
@@ -248,6 +248,18 @@ export async function extractProgram(env, { url, pasted_text, source_hint, refre
     cz.source_url = conflict.a.url || source_hint || null;
     cz.evidence_verified = true;
     notes.push(`eligibility.citizenship: two pages list different countries (${conflict.a.url ? shortUrl(conflict.a.url) : "page 1"} vs ${conflict.b.url ? shortUrl(conflict.b.url) : "page 2"}; they differ on: ${diff.join(", ")}). Check the official page.`);
+  }
+
+  // A country rule with an empty list: fill it from the quote when the quote names known countries.
+  if (cz.status !== "not_found" && ["citizens_only", "citizens_or_pr", "listed_countries", "excludes_countries"].includes(cz.value?.rule) && !cz.value.countries?.length && cz.evidence_verified) {
+    const found = countriesInSentence(cz.evidence, COUNTRY_NAMES, countryVariants);
+    if (found.length) { cz.value.countries = found; notes.push(`eligibility.citizenship: countries filled in from the quote: ${found.join(", ")}`); }
+  }
+
+  // "Open to every nationality" needs explicit wording; otherwise it is only ambiguous.
+  if (cz.status === "stated" && cz.value?.rule === "any" && !anyRuleSupported(cz.evidence)) {
+    cz.status = "ambiguous";
+    notes.push("eligibility.citizenship: the page does not clearly say all nationalities may apply");
   }
 
   // A country list may not contain more than its (verified) quote supports.

@@ -153,3 +153,10 @@ export function countryListConflict(pages, allCountries, variants, minCountries 
   }
   return null;
 }
+
+// Rule "any" (open to every nationality) is a strong claim. Accept it only when the quote says so
+// in plain words; "you are welcome to apply" in answer to one person's question is not enough.
+const ANY_WORDING = /\b(all|any|every)\s+(nationalit|countr|citizen)|regardless of\s+(your\s+)?(nationality|citizenship|country)|irrespective of\s+(nationality|citizenship|country)|international (students|applicants) (are )?(welcome|eligible|encouraged)|open to (all|international)|no (nationality|citizenship) (restriction|requirement)|worldwide/i;
+export function anyRuleSupported(evidence) {
+  return ANY_WORDING.test(String(evidence ?? ""));
+}
