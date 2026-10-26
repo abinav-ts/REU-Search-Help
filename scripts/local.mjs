@@ -11,6 +11,10 @@ const out = (text) => process.stdout.write(text + "\n");
 console.log = (...a) => console.error(...a);
 
 import { env } from "./localenv.mjs";
+import { installFakeFirecrawl } from "./fake-firecrawl.mjs";
+
+// FAKE_FIRECRAWL=1 stands in for Firecrawl scraping when no Firecrawl key is available (testing only).
+if (process.env.FAKE_FIRECRAWL) { env.FIRECRAWL_API_KEY ||= "fake"; installFakeFirecrawl(); }
 
 const [method = "GET", urlPath = "/api/health", bodyArg] = process.argv.slice(2);
 // a body starting with @ means "read it from that file"

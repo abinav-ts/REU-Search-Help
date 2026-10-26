@@ -107,3 +107,49 @@ export function computeCycleState(deadlineIso, year, today = new Date()) {
   if (typeof year === "number" && year < today.getUTCFullYear()) notes.push("page may describe a previous cycle");
   return { state, notes };
 }
+
+// A list of countries must not contain more than its quote supports. Drops countries whose name
+// (or a known alias) is not in the evidence text. `variants(name)` -> array of normalised spellings.
+// Returns the removed names.
+export function pruneUnsupportedCountries(countries, evidence, variants) {
+  const text = " " + normaliseForMatch(evidence) + " ";
+  const kept = [];
+  const removed = [];
+  for (const c of countries) {
+    const supported = variants(c).some((v) => v && text.includes(" " + normaliseForMatch(v) + " "));
+    (supported ? kept : removed).push(c);
+  }
+  return { kept, removed };
+}
+
+// ---- Conflicting country lists across pages (code-side check; the model often misses these) ----
+
+// Which known countries does this sentence name? `allCountries` = canonical names,
+// `variants(name)` = normalised spellings.
+export function countriesInSentence(sentence, allCountries, variants) {
+  const text = " " + normaliseForMatch(sentence) + " ";
+  return allCountries.filter((c) => variants(c).some((v) => v && text.includes(" " + normaliseForMatch(v) + " ")));
+}
+
+// pages: [{url, text}]. Per page take the sentence that names the most countries (>= minCountries);
+// if two pages name different sets, return {a:{url,sentence,countries}, b:{...}}, else null.
+export function countryListConflict(pages, allCountries, variants, minCountries = 5) {
+  const best = [];
+  for (const p of pages) {
+    let top = null;
+    for (const raw of String(p.text || "").split(/(?<=[.!?])\s+|\n+/)) {
+      if (raw.length < 20 || raw.length > 1500) continue;
+      const countries = countriesInSentence(raw, allCountries, variants);
+      if (countries.length >= minCountries && (!top || countries.length > top.countries.length)) top = { url: p.url, sentence: raw.trim(), countries };
+    }
+    if (top) best.push(top);
+  }
+  for (let i = 0; i < best.length; i++) {
+    for (let j = i + 1; j < best.length; j++) {
+      const a = new Set(best[i].countries);
+      const same = a.size === best[j].countries.length && best[j].countries.every((c) => a.has(c));
+      if (!same) return { a: best[i], b: best[j] };
+    }
+  }
+  return null;
+}

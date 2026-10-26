@@ -108,12 +108,13 @@ const KEYWORDS = [
   [/eligib/i, 6], [/who[-_ ]can[-_ ]apply/i, 6], [/\bhow[-_ ]to[-_ ]apply/i, 5], [/\bapply\b|application/i, 4],
   [/\bfaq|frequently/i, 4], [/requirement|criteria/i, 4], [/admission/i, 3],
   [/people|mentor|faculty|supervisor|host/i, 3], [/project|research[-_ ]areas?|topics?/i, 3],
-  [/brochure|guideline|handbook|call[-_ ]for/i, 3], [/\.pdf(\?|$)/i, 2],
+  [/brochure|guideline|handbook|call[-_ ]for/i, 3], [/\.pdf(\?|$)/i, 1],
   [/stipend|funding|support|benefit|housing|visa/i, 2], [/program|fellowship|internship|reu/i, 1],
 ];
 const PENALTIES = [
   /privacy|cookie|terms|login|log-in|signin|sign-in|register|account|donate|shop|store/i,
   /news|blog|press|event|calendar|alumni|gallery|photo|video|careers|jobs|contact|sitemap/i,
+  /template|modele|sample|\/fr-|\/fr\/|fr-ca|attentes|directives|\/es\/|\/de\//i,
   /\.(jpg|jpeg|png|gif|svg|webp|zip|mp4|docx?|xlsx?|pptx?)(\?|$)/i,
   /^(mailto|tel|javascript):/i,
 ];
@@ -122,21 +123,36 @@ const PENALTIES = [
 export function rankLinks(baseUrl, links, max = 3, now = new Date()) {
   const thisYear = now.getUTCFullYear();
   const baseKey = normaliseUrl(baseUrl);
-  const seen = new Set([baseKey]);
-  const scored = [];
+  // The same URL can arrive twice (once bare, once with its anchor text): merge, keeping the richer text.
+  const merged = new Map();
   for (const l of links) {
     const url = normaliseUrl(l.url);
-    if (!url || seen.has(url) || !/^https?:/i.test(url)) continue;
-    seen.add(url);
+    if (!url) continue;
+    const prev = merged.get(url) || { text: "", ctx: "" };
+    merged.set(url, { text: prev.text || l.text || "", ctx: prev.ctx || l.ctx || "" });
+  }
+  const scored = [];
+  for (const [url, l] of merged) {
+    if (url === baseKey || !/^https?:/i.test(url)) continue;
     if (!sameSite(baseUrl, url)) continue; // R-EXT-1: never leave the programme's own site
-    const hay = `${l.text || ""} ${decodeURIComponent(url.replace(/^https?:\/\/[^/]+/, ""))}`;
+    const path = decodeURIComponent(url.replace(/^https?:\/\/[^/]+/, ""));
+    // anchor text + the words around the link + the path ("found here" means little on its own)
+    const hay = `${l.text || ""} ${path}`;
     if (PENALTIES.some((p) => p.test(url))) continue;
     let score = 0;
-    for (const [re, pts] of KEYWORDS) if (re.test(hay)) score += pts;
+    for (const [re, pts] of KEYWORDS) {
+      if (re.test(hay)) score += pts;
+      else if (l.ctx && re.test(l.ctx)) score += pts / 2; // words just before the link count half
+    }
     if (/news|blog|press|event/i.test(hay)) score -= 3;
     // Programme sites often keep the real details on a per-year page ("2026"). Prefer the latest.
-    const y = (l.text || "").trim().match(/^(?:[A-Za-z ]{0,20})?(20\d\d)$/)?.[1] || url.match(/\/(20\d\d)(?:\/|\.|$)/)?.[1];
+    // (upload folders like /uploads/2025/03/ are dates of a file, not a programme year)
+    const isUpload = /\/uploads?\/|\/wp-content\/|\/20\d\d\/\d{2}\//i.test(url);
+    const y = (l.text || "").trim().match(/^(?:[A-Za-z ]{0,20})?(20\d\d)$/)?.[1] || (isUpload ? null : url.match(/\/(20\d\d)(?:\/|\.|$)/)?.[1]);
     if (y && Number(y) >= thisYear - 1 && Number(y) <= thisYear + 1) score += 5 + (Number(y) - 2000) / 100;
+    // pages that live next to / under the programme's own page are more likely to be about it
+    const stem = baseKey ? baseKey.replace(/\/[^/]*$/, "") : "";
+    if (score > 0 && stem && stem.length > 20 && url.startsWith(baseKey.slice(0, Math.max(baseKey.length - 3, 0)))) score += 3;
     if (score > 0) scored.push({ url, score, text: l.text || "" });
   }
   scored.sort((a, b) => b.score - a.score || a.url.length - b.url.length);
@@ -148,9 +164,11 @@ export function markdownLinks(markdown, baseUrl) {
   const out = [];
   const re = /\[([^\]]{1,200})\]\(\s*<?([^)\s>]+)>?[^)]*\)/g;
   let m;
-  while ((m = re.exec(markdown || "")) !== null) {
+  markdown = markdown || "";
+  while ((m = re.exec(markdown)) !== null) {
     try {
-      out.push({ text: m[1].replace(/\s+/g, " ").trim(), url: new URL(m[2], baseUrl).toString() });
+      const before = markdown.slice(Math.max(0, m.index - 70), m.index).replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/\s+/g, " ");
+      out.push({ text: m[1].replace(/\s+/g, " ").trim(), ctx: before.trim(), url: new URL(m[2], baseUrl).toString() });
     } catch { /* skip malformed link */ }
   }
   return out;

@@ -42,7 +42,8 @@ test("R-EXT-2 rankLinks keeps same-site links and prefers eligibility/FAQ/apply 
 
 test("markdownLinks reads anchor text and resolves relative links", () => {
   const l = markdownLinks("See [Who can apply](/apply/who) and [x](https://a.com/b).", "https://s.edu/prog/");
-  assert.deepEqual(l[0], { text: "Who can apply", url: "https://s.edu/apply/who" });
+  assert.equal(l[0].text, "Who can apply");
+  assert.equal(l[0].url, "https://s.edu/apply/who");
   assert.equal(l.length, 2);
 });
 
@@ -57,4 +58,12 @@ test("R-EXT-2 per-year pages: the latest year link is chosen, relative to the fi
   const r = rankLinks(base, links, 3, new Date("2026-10-27"));
   assert.equal(r[0].url, "https://www.cmu.edu/math/undergrad/suami/2026/index.html");
   assert.ok(!r.some((x) => x.url.includes("2021")));
+});
+
+test("R-EXT-2 'found here' links are ranked by the words before them; upload-folder years are ignored", () => {
+  const base = "https://www.mitacs.ca/our-programs/globalink-research-internship/";
+  const md = "Eligibility requirements for 2027 can be [found here](https://www.mitacs.ca/our-programs/globalink-research-internship-students/) and [letter guide](https://www.mitacs.ca/wp-content/uploads/2025/03/Guidelines.pdf).";
+  const links = markdownLinks(md, base);
+  const r = rankLinks(base, [{ url: "https://www.mitacs.ca/our-programs/training", text: "Training" }, ...links], 3, new Date("2026-10-27"));
+  assert.equal(r[0].url, "https://www.mitacs.ca/our-programs/globalink-research-internship-students");
 });

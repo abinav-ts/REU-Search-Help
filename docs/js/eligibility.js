@@ -124,6 +124,16 @@ export function expandCountries(list) {
   return { set, unknownGroup };
 }
 
+export const COUNTRY_NAMES = Object.keys(COUNTRIES);
+
+// Every spelling we know for a country, normalised (used by the Worker to check a quote supports a list).
+export function countryVariants(name) {
+  const canonical = normalizeCountry(name);
+  const out = new Set([squash(canonical)]);
+  for (const [alias, canon] of ALIASES) if (canon === canonical && (alias.length > 2 || alias === "us" || alias === "uk")) out.add(alias);
+  return [...out];
+}
+
 const names = (list) => (list || []).map(normalizeCountry).filter(Boolean);
 const join = (list) => (list.length ? list.join(", ") : "none given");
 

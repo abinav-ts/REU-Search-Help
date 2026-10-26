@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normaliseForMatch, makeEvidenceChecker, cleanField, verifyField, computeCycleState } from "../worker/src/verify.js";
+import { countryListConflict, pruneUnsupportedCountries,normaliseForMatch, makeEvidenceChecker, cleanField, verifyField, computeCycleState } from "../worker/src/verify.js";
 
 const PAGE = `Eligibility: Applicants must be citizens or permanent
 residents of the United States. Students in their
@@ -63,4 +63,22 @@ test("R-EXT-16 quotes joined with ... or ‖ are checked part by part", () => {
   const check = makeEvidenceChecker([PAGE]);
   assert.ok(check("Applicants must be citizens or permanent residents ... sophomore or junior year are preferred"));
   assert.ok(!check("Applicants must be citizens or permanent residents ... a sentence that is not there at all"));
+});
+
+import { countryVariants, COUNTRY_NAMES } from "../docs/js/eligibility.js";
+test("H2 countries not named in the quote are dropped; aliases like U.S. still count", () => {
+  const r = pruneUnsupportedCountries(["India", "Australia", "United States"], "students from India, Brazil and the U.S.", countryVariants);
+  assert.deepEqual(r.kept, ["India", "United States"]);
+  assert.deepEqual(r.removed, ["Australia"]);
+});
+
+test("H2/F7 two pages naming different country lists are reported as a conflict", () => {
+  const old = { url: "https://m.ca/main", text: "Open to students from: Australia, Brazil, Chile, China, Colombia, France and Germany. Apply early." };
+  const nu = { url: "https://m.ca/students", text: "Open to students from the following: Austria, Brazil, Chile, China, India, Ireland and Jordan.\nMore text." };
+  const c = countryListConflict([old, nu], COUNTRY_NAMES, countryVariants);
+  assert.ok(c);
+  assert.ok(c.b.countries.includes("India") && !c.a.countries.includes("India"));
+  const same = countryListConflict([old, { url: "x", text: old.text }], COUNTRY_NAMES, countryVariants);
+  assert.equal(same, null);
+  assert.equal(countryListConflict([old], COUNTRY_NAMES, countryVariants), null);
 });

@@ -5,7 +5,9 @@
 import { ApiError } from "./errors.js";
 import { publicJSON } from "./llm.js";
 import { modelSchema, cleanModelOutput, eachField } from "./schema.js";
-import { makeLocator, computeCycleState } from "./verify.js";
+import { makeLocator, computeCycleState, pruneUnsupportedCountries, countryListConflict } from "./verify.js";
+// The country-name table lives with the eligibility engine; reuse it so both sides agree on spellings.
+import { countryVariants, COUNTRY_NAMES } from "../../docs/js/eligibility.js";
 import { rankLinks, markdownLinks, hostOf } from "./links.js";
 import { scrape, SCRAPE_CREDITS } from "./providers/firecrawl.js";
 import { makeCache, pageKey, programKey, creditsKey, TTL } from "./cache.js";
@@ -24,7 +26,7 @@ RULES
 2. For every fact you do state, copy a short VERBATIM quote (at most 240 characters, exactly the characters on the page, no paraphrase, no added words) into "evidence", and put the PAGE URL it came from in "source_url".
 3. status "stated" = the pages clearly say it. status "ambiguous" = pages conflict, or the wording is vague ("preference given to ..."). For a conflict put both quotes in "evidence" joined with " ‖ ". The same separator is used when one fact is spread over several places (for example a list of mentors): give several SHORT verbatim quotes joined with " ‖ ", and never use "..." or "…" inside a quote.
 4. Counts: "sop_count" is the number of statements of purpose / personal statements / essays the application asks for; "recommendation_letters" the number of reference letters. Fill a count ONLY when the pages give the number or clearly list that many separate documents (for example "two letters of recommendation", "a letter from a professor" = 1). If the pages merely mention that the application asks about your motivation or interests, that is NOT a count: use not_found. Never use 0 or 1 as a guess, and never write a count in extraction_notes that you could not support with a quote.
-5. "cycle.year" is the year of the programme cycle the PAGE describes (for example 2026), taken from the page, not from today's date. "cycle.deadline" is the main application deadline as an ISO date YYYY-MM-DD. If there are several deadlines (for example different ones for international applicants), choose the one that applies to the most applicants and mention the others in extraction_notes. If the page looks like it describes a previous year, say so in extraction_notes.
+5. "cycle.year" is the year of the programme cycle the PAGE describes (for example 2026), taken from the page, not from today's date. "cycle.deadline" is the main application deadline as an ISO date YYYY-MM-DD. If the page gives a deadline without a year (for example "February 15") and the cycle year is stated elsewhere on the pages, use that year but set the status to "ambiguous" and say so in extraction_notes. If there are several deadlines (for example different ones for international applicants), choose the one that applies to the most applicants and mention the others in extraction_notes. If the page looks like it describes a previous year, say so in extraction_notes.
 6. Citizenship: rule "any" ONLY if the page explicitly welcomes all nationalities. "citizens_only" = citizens of the host country only. "citizens_or_pr" = citizens or permanent residents. "listed_countries" = only the listed countries (put them in "countries"). "excludes_countries" = open except the listed countries. Otherwise "other". Never infer from where the host university is.
 7. "career_stage.levels": which degree levels may apply. "other_requirements" lists extra requirements verbatim-ish (language tests, prior courses, nominations); do not evaluate them.
 8. "dates" = when the programme runs (for example "May 27 – July 17, 2026"). Funding fields are separate and each "value" is a SHORT FACTUAL DESCRIPTION in plain words, never just "Yes": "stipend" = money paid to the student (amount and period if given, for example "Rs 2000 per week for up to 8 weeks"); "other_funding" = tuition waiver, grant, awards or fees covered; "travel_support" = what travel is paid or reimbursed; "housing" = provided, allowance, or not provided (say which); "visa_support" = visa help or an invitation letter for international students. Use each quote for the field it belongs to; do not repeat one quote across several funding fields. State only what is written.
@@ -34,7 +36,7 @@ RULES
 12. Write all values in English. If the page is in another language, keep the original-language words in "evidence" and set "language" to its language code.
 13. "tier" and "country" are your best guess about the host institution (labels only). "extraction_notes" are short plain notes about anything odd.
 
-14. If a page says the real details are on another page that is not included (for example "requirements for 2027 can be found here"), add a short note to extraction_notes. If an older list on one page differs from a newer one on another page, use status "ambiguous" and quote both.
+14. PAGES CAN DISAGREE. A general overview page and a dedicated page can give different lists or values for the same fact (for example two different lists of eligible countries, or different deadlines), because one is older or less specific. Compare the pages for every fact. If they differ, DO NOT silently choose one: set status "ambiguous", put a quote from each page in "evidence" joined with " ‖ ", and put the list or value from the page that looks newer or more specific in "value" (say which in extraction_notes). Pay particular attention to the citizenship and country lists. If a page says the real details are on another page that is not included, add a short note to extraction_notes.
 
 Return only the JSON record.`;
 
@@ -226,6 +228,36 @@ export async function extractProgram(env, { url, pasted_text, source_hint, refre
         f.status = "ambiguous";
         notes.push(`${label}: ${f.evidence ? "quote could not be matched on the fetched page" : "no supporting quote was given"}`);
       }
+    }
+  }
+
+  // Two pages naming DIFFERENT country lists is a conflict the model often misses: flag it in code.
+  const conflict = countryListConflict(sent, COUNTRY_NAMES, countryVariants);
+  const cz = rec.eligibility.citizenship;
+  if (conflict && cz.status !== "not_found") {
+    const diff = [...new Set([...conflict.a.countries, ...conflict.b.countries])].filter((c) => !(conflict.a.countries.includes(c) && conflict.b.countries.includes(c)));
+    cz.status = "ambiguous";
+    cz.value.countries = [...new Set([...conflict.a.countries, ...conflict.b.countries])];
+    // show each sentence from just before the first differing country, so the difference is visible
+    const window = (side) => {
+      const first = diff.find((c) => side.countries.includes(c));
+      const at = first ? Math.max(0, side.sentence.toLowerCase().indexOf(first.toLowerCase()) - 60) : 0;
+      return side.sentence.slice(at, at + 230);
+    };
+    cz.evidence = `${window(conflict.a)} ‖ ${window(conflict.b)}`;
+    cz.source_url = conflict.a.url || source_hint || null;
+    cz.evidence_verified = true;
+    notes.push(`eligibility.citizenship: two pages list different countries (${conflict.a.url ? shortUrl(conflict.a.url) : "page 1"} vs ${conflict.b.url ? shortUrl(conflict.b.url) : "page 2"}; they differ on: ${diff.join(", ")}). Check the official page.`);
+  }
+
+  // A country list may not contain more than its (verified) quote supports.
+  for (const [label, f] of [["eligibility.citizenship", rec.eligibility.citizenship], ["eligibility.institution", rec.eligibility.institution]]) {
+    if (f.status === "not_found" || !Array.isArray(f.value?.countries) || !f.value.countries.length || !f.evidence_verified || f.status !== "stated") continue;
+    const { kept, removed } = pruneUnsupportedCountries(f.value.countries, f.evidence, countryVariants);
+    if (removed.length) {
+      f.value.countries = kept;
+      notes.push(`${label}: removed countries not named in the quote: ${removed.join(", ")}`);
+      if (!kept.length) f.status = "ambiguous";
     }
   }
 
