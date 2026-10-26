@@ -6,8 +6,8 @@ Tick a box only when its exit test has passed on the **deployed** site (or Worke
 - [x] GitHub repo exists; Pages serves `docs/index.html` at a public URL (https://abinav-ts.github.io/REU-Search-Help/)
 - [x] Worker deployed; `GET /api/health` returns `{ok:true}` (https://reu-brief.abinav-ts2006.workers.dev)
 - [x] Page button calls the Worker from the Pages origin (CORS works) and shows the reply (checked on phone, 26 Oct ~13:00 IST)
-- [ ] `scripts/smoke-test.sh` passes for Gemini and Firecrawl; Flash model id chosen and set as `MODEL_PUBLIC`; Workers AI model id set as `MODEL_PRIVATE`
-- [ ] `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`, `DEMO_KEY` set as Worker secrets (`DEMO_KEY` and `FIRECRAWL_API_KEY` done; `GEMINI_API_KEY` waiting for the new AI Studio key)
+- [x] Smoke test for Gemini and Firecrawl; Flash model ids chosen and set as `MODEL_PUBLIC` (`gemini-3.1-flash-lite,gemini-3.5-flash-lite`); Workers AI model set as `MODEL_PRIVATE` (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`). Gemini checked on the deployed Worker via `/api/diag/gemini` (26 Oct): 3.1 got 503 then stalled, fallback 3.5 answered 200 in 20.7 s. Firecrawl checked the previous session (`/v2/search`).
+- [x] `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`, `DEMO_KEY` set as Worker secrets
 - Exit test: open the Pages URL on your phone, press the button, see the Worker reply.
 
 ## M1 Vertical slice (11:00–13:00) — specs 01, 02
@@ -56,17 +56,17 @@ Tick a box only when its exit test has passed on the **deployed** site (or Worke
 - [ ] Backup screen recording saved
 - [ ] README written, submission links ready
 
-## Notes for next session (state as of Mon 26 Oct, 12:15 IST)
+## Notes for next session (state as of Mon 26 Oct, ~19:00 IST)
 
-**Timing:** the build started about 1h40 late (M0 should have ended 11:00). Everything below the schedule is shifted by roughly that much. First task: re-cut `SCHEDULE.md` with the remaining time to Tue 11:59 (keep sleep 23:30-07:00), applying cut-ladder steps 1-2 (mentor depth, tier filters) up front. Gate G1 moves to about 19:30.
+**M0 is done.** Site: https://abinav-ts.github.io/REU-Search-Help/ . Worker: https://reu-brief.abinav-ts2006.workers.dev . Next: M1 (specs 01, 02). `SCHEDULE.md` still needs re-cutting for the late start (cut-ladder steps 1-2 up front; keep sleep 23:30-07:00).
 
-**M0 status**
-- Written: `worker/src/index.js` (health, CORS, demo-key check, `/api/ping`), `worker/wrangler.toml` (placeholders), `docs/index.html` + `docs/js/app.js` + `docs/js/config.js` (ping page), `.gitignore`, `scripts/smoke-test.sh` (now with a 40 s timeout and timing).
-- Not done yet (owner runs these in Terminal, Claude Code guides): `npx wrangler login`; `npx wrangler kv namespace create CACHE` and paste the printed block into `wrangler.toml`; set `ALLOWED_ORIGIN` (needs the owner's GitHub username) and `WORKER_URL` in `docs/js/config.js`; `npx wrangler secret put` for `DEMO_KEY`, `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`; `npx wrangler deploy`; create the GitHub repo and enable Pages (`main` → `/docs`).
-- Do not ask the owner to paste any key into chat or into a file.
+**Working pattern.** Keys live in Worker secrets (set by the owner in a real Terminal; `!` runs without a keyboard, so `wrangler secret put` must not be run that way) and in git-ignored `worker/.dev.vars` (owner-written; Claude never reads it). Claude runs `npx wrangler dev` and curls `localhost:8787` with `X-Demo-Key: local-test`. Claude does not know the real `DEMO_KEY`; the page's "Check Gemini" button is the owner's way to test the deployed Worker.
 
-**Provider checks**
-- Firecrawl: verified. `POST https://api.firecrawl.dev/v2/search` works; results at `data.web[]` (url, title, description, position).
-- Gemini: key lists models fine. The shared free-tier daily quota was used up yesterday (likely by the other course project on the same Google project). Owner will make a **new key in a new AI Studio project** for this app; the quota resets at 12:30 IST. A call to `gemini-3.6-flash` ran too long (duration unknown, likely a slow model or demand spike); a `503 UNAVAILABLE` was seen on another attempt. Still to test: `gemini-3.8-flash` and a flash-lite model, using the timer in the smoke test. Result decides `MODEL_PUBLIC` (a comma-separated fallback list, spec 05) and whether to turn thinking down for JSON calls.
-- Workers AI model for `MODEL_PRIVATE`: not chosen yet (needs an instruct model that supports JSON output).
-- Gemini 503 and quota errors are expected; build the fallback list and `quota_exhausted` handling (R-BE-12) early, in M1.
+**Gemini facts measured (26 Oct)**
+- Rate limits are per Google project, not per key. This app has its own project.
+- `gemini-2.5-flash`: 404 for new keys. `gemini-3.8-flash`: times out (>45 s; the sister project saw ~206 s per call, 20 requests/day), so not on the live path.
+- `gemini-3.1-flash-lite`: 2 s to 16 s on a trivial prompt, and one 503 followed by a 30 s stall. `gemini-3.5-flash-lite`: 20-26 s even on a trivial prompt, but the sister project got 15 rpm / 500 rpd and good extraction quality from it.
+- Plan for M1: expect 20+ s per Gemini call; show progress; set the call timeout per spec 05 (60 s) and measure on a real page before tightening. Request shape in `worker/src/providers/gemini.js` (`responseJsonSchema`; optional `thinkingConfig.thinkingLevel`, untested).
+- Gemini 503 and quota errors are expected; build the fallback list handling (R-BE-12) properly in M1 (`/api/diag/gemini` already walks it).
+
+**Spec changes today:** new fields (other_funding, travel_support, housing, visa_support, optional prior_year_selectivity), full schema built in M1 (R-EXT-15); `/diag/gemini` endpoint. See the decision log in `specs/00-global.md` §12.
