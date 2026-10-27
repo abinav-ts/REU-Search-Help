@@ -29,7 +29,9 @@ export function sseResponse(cors, ctx, run) {
         isOpen: () => !closed,
       });
     } catch (e) {
-      await send("error", toApiError(e).toJSON());
+      const err = toApiError(e);
+      console.log(`lookup failed code=${err.code}`); // the code only, never any content (R-BE-7)
+      await send("error", err.toJSON());
     } finally {
       clearInterval(keepalive);
       closed = true;
