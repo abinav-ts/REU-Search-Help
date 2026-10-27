@@ -292,7 +292,11 @@ function openProfile() {
 }
 function closeProfile() { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); }
 
-function refreshProfileButton() { $("profile-button").textContent = isComplete(profile) ? summary(profile) : "Add your profile"; }
+function refreshProfileButton() {
+  const set = isComplete(profile);
+  $("profile-label").textContent = set ? summary(profile) : "Add your profile";
+  $("profile-button").classList.toggle("set", set);
+}
 
 $("profile-button").addEventListener("click", openProfile);
 $("profile-cancel").addEventListener("click", closeProfile);

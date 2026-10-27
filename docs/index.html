@@ -5,28 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>REU Brief</title>
   <meta name="description" content="Type a research programme's name. Get one page: who can apply, what it needs, and whether you are eligible, with the quote behind every fact.">
+  <meta name="theme-color" content="#14597a">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-state="idle">
-  <header class="top">
-    <h1>REU Brief</h1>
-    <div class="row" style="flex:0 0 auto">
-      <button type="button" class="secondary" id="profile-button" aria-haspopup="dialog">Add your profile</button>
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="./" aria-label="REU Brief home">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor" style="color:var(--accent)"/><path d="M9 22V10h7.2c2.6 0 4.2 1.4 4.2 3.6 0 1.7-1 3-2.7 3.4L21 22h-3.3l-2.9-4.7H12V22H9zm3-7h4c1 0 1.6-.6 1.6-1.4S17 12.2 16 12.2h-4V15z" fill="#fff"/></svg>
+        REU Brief
+      </a>
+      <button type="button" class="pill" id="profile-button" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <span id="profile-label">Add your profile</span>
+      </button>
     </div>
   </header>
 
-  <main>
-    <p class="muted">Type a programme name, a link, or what you remember about it. You get one page: who can apply, what it needs, and whether <em>you</em> are eligible, with the quote behind every fact.</p>
+  <section class="hero">
+    <div class="wrap">
+      <h1>Know if you can apply <em>before</em> you read the whole page.</h1>
+      <p class="lede">Type a research programme's name, a link, or what you remember about it. You get one page: who can apply, what it needs, funding, mentors, and whether <em>you</em> are eligible, with the quote behind every fact.</p>
 
-    <form id="search-form" class="search">
-      <label for="query" class="visually-hidden" style="position:absolute;left:-9999px">Programme name, link, or description</label>
-      <div class="row">
-        <input id="query" type="search" placeholder="e.g. Mitacs Globalink, or a link, or &quot;that quantum REU in Switzerland&quot;" maxlength="300" required autocomplete="off">
-        <button id="go" type="submit" class="primary">Find programme</button>
-        <button id="cancel" type="button" class="secondary" hidden>Cancel</button>
-      </div>
-      <p class="examples" id="examples"><span class="muted">Try:</span></p>
-    </form>
+      <form id="search-form">
+        <label for="query" style="position:absolute;left:-9999px">Programme name, link, or description</label>
+        <div class="search-box">
+          <input id="query" type="search" placeholder="e.g. Mitacs Globalink, a link, or “that quantum REU in Switzerland”" maxlength="300" required autocomplete="off">
+          <button id="go" type="submit" class="primary">Find programme</button>
+          <button id="cancel" type="button" class="secondary" hidden>Cancel</button>
+        </div>
+        <p class="examples" id="examples"><span class="muted">Try:</span></p>
+      </form>
+    </div>
+  </section>
+
+  <main class="wrap">
+    <div class="intro" aria-label="How it works">
+      <div class="step"><b>1</b><h2>Type anything</h2><p>A name, an acronym, a link, or a half-remembered description. If it is ambiguous you pick from a short list; if no such programme exists you are told so.</p></div>
+      <div class="step"><b>2</b><h2>It reads the official page</h2><p>Including the FAQ and apply pages on the same site. Every fact comes with the exact quote and a source link, or is marked “Not stated on the site”.</p></div>
+      <div class="step"><b>3</b><h2>Your verdict, in code</h2><p>Eligible, Not eligible or Unclear is worked out in your browser from your profile by plain rules, never guessed by a model.</p></div>
+    </div>
 
     <div id="key-box" class="info-panel" hidden>
       <label for="demo-key">Demo key</label>
@@ -53,16 +71,16 @@
 
     <div id="result"></div>
 
-    <details style="margin-top:2rem">
+    <details class="dev" style="margin-top:2rem">
       <summary>Developer checks</summary>
       <p><button id="ping" type="button" class="secondary">Ping Worker</button> <button id="gemini" type="button" class="secondary">Check Gemini</button></p>
       <pre id="out" style="white-space:pre-wrap;word-break:break-word">Not called yet.</pre>
     </details>
   </main>
 
-  <footer>
+  <footer><div class="wrap">
     REU Brief reads the official page and shows what it says, with quotes. It is not legal or visa advice, and programme terms change: always verify on the official site. Your profile stays in this browser.
-  </footer>
+  </div></footer>
 
   <dialog id="profile-dialog" aria-labelledby="profile-title">
     <form id="profile-form" method="dialog">

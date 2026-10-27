@@ -77,7 +77,7 @@ await tick();
 check("profile saved: country alias 'Indian' became 'India'", JSON.parse(window.localStorage.getItem("reuBriefProfile")).citizenships[0] === "India");
 check("verdict appears after saving the profile", /Unclear|Eligible|Not eligible/.test($("result").textContent));
 check("no new network call after changing the profile (U6)", calls.length === callsBefore);
-check("profile button shows a summary", $("profile-button").textContent.includes("India"));
+check("profile button shows a summary", $("profile-label").textContent.includes("India"));
 
 // 4. conflicting country lists -> Unclear, never a confident verdict
 check("Mitacs (conflicting lists) is Unclear for the Indian profile", $("result").querySelector(".verdict-unclear") !== null);
