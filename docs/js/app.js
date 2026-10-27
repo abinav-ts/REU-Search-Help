@@ -15,7 +15,8 @@ const $ = (id) => document.getElementById(id);
 // ---- demo key (kept for this tab only; R-UI-6) ----
 const keyInput = $("demo-key");
 try { keyInput.value = sessionStorage.getItem("demoKey") || ""; } catch (e) { /* storage blocked: key just isn't remembered */ }
-$("key-box").hidden = Boolean(keyInput.value);
+// The key box appears only if the server answers "unauthorized" (see showError); with the key switched off it never shows.
+$("key-box").hidden = true;
 const saveKey = () => { try { sessionStorage.setItem("demoKey", keyInput.value); } catch (e) { /* ignore */ } };
 
 // ---- state ----

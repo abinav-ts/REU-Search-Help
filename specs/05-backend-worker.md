@@ -41,7 +41,7 @@ Send a comment line (`: keepalive`) every 10 s so proxies don't close the stream
 ## Requirements
 - **R-BE-1** Secrets: `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`, `DEMO_KEY`. Never in the page, repo, or logs. `wrangler.toml` holds only non-secret config and the `AI` and `CACHE` bindings.
 - **R-BE-2** CORS: allow origins `https://<github-user>.github.io` and `http://localhost:*` only; reply to `OPTIONS` preflight.
-- **R-BE-3** Header `X-Demo-Key` must equal secret `DEMO_KEY`. The page asks for it once (entered by the presenter, kept in `sessionStorage`). Missing/wrong → `401 unauthorized`. (A public page can't hide a key; this stops casual abuse. The real protection is the credit cap, R-BE-11.)
+- **R-BE-3** Header `X-Demo-Key` must equal secret `DEMO_KEY`, unless the env var `REQUIRE_DEMO_KEY` is `"false"` (owner's choice, 27 Oct): then every endpoint except `/diag/gemini` is open and the rate limit (R-BE-4) and credit cap (R-BE-11) are the guards. The page asks for it once (entered by the presenter, kept in `sessionStorage`). Missing/wrong → `401 unauthorized`. (A public page can't hide a key; this stops casual abuse. The real protection is the credit cap, R-BE-11.)
 - **R-BE-4** Rate limit: best-effort **in-memory** counter per isolate (default 30 requests / 10 min per IP, env `RATE_LIMIT`) → `429 rate_limited`. Do **not** use KV for counters (R-BE-8).
 - **R-BE-5** Env vars: `MODEL_PUBLIC`, `MODEL_PRIVATE`, `FIRECRAWL_MONTHLY_CAP` (default 900), `ALLOWED_ORIGIN`.
 - **R-BE-6** Per-request caps: 1 search; ≤ 6 scrapes (spec 02); page text truncated to 40 000 chars per page and 120 000 chars total sent to the LLM; total wall-clock ≤ 120 s → `timeout`.

@@ -74,8 +74,12 @@ export default {
       return json({ error: { code: "rate_limited", message: "Too many requests. Wait a few minutes and try again.", retryable: true } }, 429, cors);
     }
 
-    // Everything else needs the demo key.
-    if (!env.DEMO_KEY || request.headers.get("X-Demo-Key") !== env.DEMO_KEY) {
+    // The demo key (R-BE-3) can be switched off with REQUIRE_DEMO_KEY="false" (wrangler.toml). When it is off,
+    // the rate limit and the monthly credit cap are the only guards on the free quotas. The Gemini
+    // diagnostics endpoint stays behind the key either way, because every call to it spends a Gemini request.
+    const keyOk = Boolean(env.DEMO_KEY) && request.headers.get("X-Demo-Key") === env.DEMO_KEY;
+    const needKey = env.REQUIRE_DEMO_KEY !== "false" || url.pathname === "/api/diag/gemini";
+    if (needKey && !keyOk) {
       return json(
         { error: { code: "unauthorized", message: "Missing or wrong demo key.", retryable: false } },
         401,

@@ -9,6 +9,8 @@ ALLOWED_ORIGIN = "https://abinav-ts.github.io"
 MODEL_PUBLIC = "gemini-3.1-flash-lite,gemini-3.5-flash-lite"
 MODEL_PRIVATE = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 FIRECRAWL_MONTHLY_CAP = "900"
+# "false" = anyone with the page can search (rate limit + credit cap still apply). Set "true" to require the demo key again.
+REQUIRE_DEMO_KEY = "false"
 
 # Cloudflare Workers AI (private lane for CV/match)
 [ai]

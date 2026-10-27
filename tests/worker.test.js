@@ -64,3 +64,15 @@ test("B6 no API key strings in the repo source", () => {
     assert.ok(!/AIza[0-9A-Za-z_-]{30,}|fc-[a-f0-9]{24,}|sk-[A-Za-z0-9]{30,}/.test(t), `key-like string in ${f}`);
   }
 });
+
+test("R-BE-3 REQUIRE_DEMO_KEY=false opens the app endpoints without a key, but never the Gemini diagnostics", async () => {
+  const open = { ...env, REQUIRE_DEMO_KEY: "false" };
+  const h = { "CF-Connecting-IP": "5.5.5.5" };
+  assert.equal((await call("/api/ping", { headers: h }, open)).status, 200);
+  const r = await call("/api/extract", { method: "POST", headers: h, body: "not json" }, open);
+  assert.equal(r.status, 400); // got past authorisation and failed on the body instead
+  assert.equal((await call("/api/diag/gemini", { headers: h }, open)).status, 401);
+  assert.equal((await call("/api/diag/gemini?model=gemini-x", { headers: { ...h, "X-Demo-Key": "secret" } }, { ...open, GEMINI_API_KEY: "k" })).status, 200);
+  // still required when the switch is on (default)
+  assert.equal((await call("/api/ping", { headers: { "CF-Connecting-IP": "5.5.5.6" } }, { ...env, REQUIRE_DEMO_KEY: "true" })).status, 401);
+});

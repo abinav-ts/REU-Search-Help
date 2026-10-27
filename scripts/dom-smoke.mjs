@@ -48,7 +48,7 @@ const check = (name, ok) => { console.log((ok ? "PASS " : "FAIL ") + name); if (
 
 // 1. example chips exist; demo key box visible when no key stored
 check("example chips are rendered", document.querySelectorAll("#examples button").length >= 3);
-check("demo key box is shown when no key is stored", $("key-box").hidden === false);
+check("demo key box stays hidden until the server asks for a key", $("key-box").hidden === true);
 
 // 2. search -> single -> extract -> result, with no profile yet
 $("demo-key").value = "k123";
@@ -104,6 +104,7 @@ for (const code of ["unauthorized", "rate_limited", "no_program_found", "js_requ
   await tick(60);
   const panel = $("error-panel");
   check(`error '${code}' shows its own panel`, !panel.hidden && panel.querySelector("h3").textContent.length > 3);
+  if (code === "unauthorized") check("after 'unauthorized' the demo key box appears", $("key-box").hidden === false);
   if (code === "blocked" || code === "js_required") check(`error '${code}' offers the paste-text box`, !$("paste-box").hidden);
 }
 script["/api/resolve"] = () => sse([["stage", { id: "s", message: "Searching" }]]); // stream ends with no result

@@ -2,7 +2,7 @@
 
 Type the name of a summer research programme, or a vague half-remembered description of one, and get a one-page brief: whether *you* are eligible (computed in code, with the deciding quote), the problem statement, topics you share with your CV, the number of statements of purpose and recommendation letters, mentors, deadline, funding, and a source link and quote for every fact.
 
-**Live site:** https://abinav-ts.github.io/REU-Search-Help/ (needs the demo key from the presenter)
+**Live site:** https://abinav-ts.github.io/REU-Search-Help/ 
 
 ## How it works
 

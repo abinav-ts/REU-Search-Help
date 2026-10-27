@@ -18,7 +18,7 @@ const html = fs.readFileSync(path.join(root, "docs/index.html"), "utf8")
   .replace("</body>", `<script type="module">
     await new Promise(r => setTimeout(r, 300));
     window.__reuBrief.setProfile(${JSON.stringify(profiles[prof] || {})});
-    window.__reuBrief.showProgram(${fs.readFileSync(fixture, "utf8")});
+    ${fixture === "-" ? "" : `window.__reuBrief.showProgram(${fs.readFileSync(fixture, "utf8")});`}
   </script></body>`);
 const page = path.join(tmp, "harness.html");
 fs.writeFileSync(page, html);
