@@ -14,6 +14,7 @@ export const ERRORS = {
   upstream_error: { title: "A service I depend on failed", text: "A search or reading service had a problem. Wait a moment and try again.", action: "retry" },
   quota_exhausted: { title: "Free limit reached", text: "The free quota for searching or reading is used up for now. The saved examples below still work; try again in a few minutes.", action: "examples" },
   cv_unreadable: { title: "Could not read that CV", text: "The file had no readable text (a scan, perhaps). Fill in the profile by hand instead.", action: null },
+  page: { title: "The page hit a problem", text: "Something went wrong in the page itself. Reload it (hold Shift while reloading) and try again.", action: "retry" },
   network: { title: "Connection lost", text: "I could not reach the server. Check your connection and try again.", action: "retry" },
 };
 export const errorInfo = (code) => ERRORS[code] || { title: "Something went wrong", text: "Please try again.", action: "retry" };

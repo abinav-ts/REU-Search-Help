@@ -64,8 +64,13 @@ async function run(path, body) {
   controller = new AbortController();
   let result = null;
   let failed = null;
+  // Always show something right away, and say so if the server is slow to answer.
+  addStage("Contacting the server…");
+  let heard = false;
+  const watchdog = setTimeout(() => { if (!heard) addStage("Still waiting for the server. The free services can be slow; this can take up to a minute…"); }, 20000);
   try {
     await postStream(path, body, keyInput.value, (name, data) => {
+      heard = true;
       if (name === "stage") addStage(data.message);
       else if (name === "result") result = data;
       else if (name === "error") failed = data;
@@ -75,6 +80,8 @@ async function run(path, body) {
   } catch (e) {
     if (e.name === "AbortError") { addStage("Cancelled."); return null; }
     failed = e;
+  } finally {
+    clearTimeout(watchdog);
   }
   if (failed) { showError(failed); return null; }
   return result;
@@ -84,7 +91,7 @@ function showError(err) {
   const info = errorInfo(err.code);
   setState("error");
   const panel = $("error-panel");
-  panel.replaceChildren(h("h3", {}, info.title), h("p", {}, info.text));
+  panel.replaceChildren(h("h3", {}, info.title), h("p", {}, info.text), err.code === "page" ? h("p", { class: "muted" }, err.message) : null);
   if (info.action === "retry" || info.action === "examples") {
     panel.append(h("p", {}, h("button", { type: "button", class: "secondary", "data-action": "retry" }, "Try again")));
   }
@@ -93,6 +100,10 @@ function showError(err) {
   panel.hidden = false;
   if (info.action === "examples") $("examples").scrollIntoView({ block: "nearest" });
 }
+
+// A script error must never look like "nothing happened".
+window.addEventListener("error", (e) => showError({ code: "page", message: `Page error: ${e.message}` }));
+window.addEventListener("unhandledrejection", (e) => showError({ code: "page", message: `Page error: ${e.reason?.message || e.reason}` }));
 
 // ---- the flow ----
 async function lookup(query) {
