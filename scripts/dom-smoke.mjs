@@ -16,7 +16,7 @@ execFileSync(path.join(root, "worker/node_modules/.bin/esbuild"), [path.join(roo
 
 const fixture = (n) => JSON.parse(fs.readFileSync(path.join(root, `tests/fixtures/program-${n}.json`), "utf8"));
 const html = fs.readFileSync(path.join(root, "docs/index.html"), "utf8").replace(/<script type="module"[^>]*><\/script>/, "");
-const dom = new JSDOM(html, { runScripts: "outside-only", url: "https://abinav-ts.github.io/REU-Search-Help/", pretendToBeVisual: true });
+const dom = new JSDOM(html, { runScripts: "outside-only", url: "https://example.github.io/REU-Search-Help/", pretendToBeVisual: true });
 const { window } = dom;
 const { document } = window;
 window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };

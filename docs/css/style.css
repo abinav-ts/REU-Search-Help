@@ -156,7 +156,17 @@ dialog h2 { font-size: 1.4rem; }
 .chip-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .chip.removable { background: var(--accent-soft); border-color: transparent; }
 .chip.removable button { background: none; border: 0; padding: 0 0 0 .45rem; font-size: 1rem; line-height: 1; color: var(--muted); }
-.cv-box { border: 1px dashed var(--accent); background: var(--accent-soft); border-radius: 12px; padding: .4rem .9rem .3rem; margin: .9rem 0; }
+.cv-box { border: 1px dashed var(--accent); background: var(--accent-soft); border-radius: 12px; padding: .4rem .9rem .5rem; margin: .9rem 0; min-width: 0; width: 100%; }
+/* a fieldset will not shrink below its content by default, which pushed the CV box past the dialog on phones */
+.cv-box input[type=file] { width: 100%; max-width: 100%; font-size: .9rem; margin: .2rem 0; }
+.cv-box input[type=file]::file-selector-button { font: inherit; margin-right: .7rem; padding: .4rem .8rem; border: 1px solid var(--line-2); border-radius: 8px; background: var(--card); color: var(--ink); cursor: pointer; }
+.cv-box textarea { display: block; width: 100%; max-width: 100%; resize: vertical; }
+.cv-box .hint { overflow-wrap: anywhere; }
+.cv-box p { margin: .4rem 0 .1rem; }
+dialog { overflow-x: hidden; }
+dialog form { min-width: 0; }
+dialog input, dialog select, dialog textarea { max-width: 100%; }
+@media (max-width: 520px) { dialog { padding: .9rem; width: calc(100% - 16px); } .cv-box { padding-left: .7rem; padding-right: .7rem; } }
 .cv-box legend { padding: 0 .4rem; font-weight: 700; font-size: .93rem; }
 .cv-box textarea { margin-top: 8px; background: var(--card); }
 .paste-box textarea { min-height: 9rem; }
